@@ -25,6 +25,15 @@ Or just download `index.html` and double-click. Data lives in your browser (loca
 - **JSON import / export** — human-readable, shareable
 - **iframe-friendly** — `?embed=feishu/dingtalk/wps` for compact embedded layout
 
+## Install as a Claude Skill
+
+```bash
+claude plugin marketplace add arggjarvs/projtree
+claude plugin install projtree@arggjarvs-projtree-marketplace
+```
+
+Then in any Claude Code / Claude Cowork session just say "build me an OKR tree" / "lay out our team org chart" / "decompose this project into a WBS" — Claude will open projtree and walk you through filling nodes.
+
 ## Roadmap
 
 - **v0.2** (1–2 weeks) — node annotations · merge-baseline specs · field-template system (OKR / product / customer / content)

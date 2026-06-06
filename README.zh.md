@@ -22,6 +22,15 @@
 *   **数据持久化**：基于 localStorage 实现本地自动保存，支持 JSON 格式导入导出，便于数据备份与团队分享。
 *   **嵌入友好**：支持 iframe 紧凑布局模式（?embed 参数），预留飞书、钉钉、WPS 等企业 IM 集成接口。
 
+## 作为 Claude Skill 安装
+
+```bash
+claude plugin marketplace add arggjarvs/projtree
+claude plugin install projtree@arggjarvs-projtree-marketplace
+```
+
+装完后在 Claude Code / Claude Cowork 里直接说"帮我建一棵 OKR 树"/"拆解这个项目的 WBS"/"画下团队的组织架构"——Claude 会自动打开 projtree 一步步引导你填字段。
+
 ## 开发路线图
 
 *   **v0.2 (1-2 周)**：新增节点批注功能，融合提交规范底线，引入字段模板系统（支持 OKR、产品、客户、内容等多场景）。

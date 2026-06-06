@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>项目树</title>
+<style>
+  /* ===========================================================
+     苹果审美 (Apple-like): Clarity / Deference / Depth
+     - 浅色为主, 系统自动跟随暗色
+     - Squircle 18px 大圆角 + 多层柔阴影 (不靠 1px 边框)
+     - Liquid Glass: 半透明 + backdrop-filter (玻璃感)
+     - SF 字体栈, tabular-nums, cursor:default, user-select:none
+     - 大留白, 控件按需透明度淡入
+     =========================================================== */
+  :root{
+    --bg:           #f5f5f7;       /* 最深 backdrop / 深层节点 */
+    --bg-canvas:    #e9e9ec;       /* body 画布 (比 bg 更深一点, 让卡片浮起来) */
+    --input-bg:     #ffffff;       /* 输入框背景 (浅色: 纯白 = raised) */
+    --card:         rgba(255,255,255,.78);
+    --card-solid:   #ffffff;
+    --card-deeper:  #fbfbfd;
+    --text:         #1d1d1f;
+    --muted:        #6e6e73;
+    --muted-2:      #86868b;
+    --line:         rgba(0,0,0,.06);
+    --accent:       #0071e3;
+    --accent-pressed:#0058b0;
+    --green:        #2f9e44;
+    --red:          #e8392f;
+    --orange:       #e8830c;
+    --radius:       18px;
+    --radius-sm:    12px;
+    --shadow-sm:    0 1px 2px rgba(0,0,0,.04), 0 2px 6px rgba(0,0,0,.04);
+    --shadow:       0 1px 2px rgba(0,0,0,.05), 0 6px 18px rgba(0,0,0,.06), 0 24px 48px rgba(0,0,0,.04);
+    --shadow-lg:    0 4px 12px rgba(0,0,0,.06), 0 24px 60px rgba(0,0,0,.12);
+    --topbar-h:     58px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:           #000;            /* 深色 true black 给最深层 */
+      --bg-canvas:    #000;
+      --input-bg:     #2c2c2e;         /* 输入框: 比 modal 卡片(#1c1c1e)更亮 = raised */
+      --card:         rgba(28,28,30,.78);
+      --card-solid:   #1c1c1e;
+      --card-deeper:  #2c2c2e;
+      --text:         #f5f5f7;
+      --muted:        #a1a1a6;
+      --muted-2:      #8e8e93;
+      --line:         rgba(255,255,255,.1);
+      --shadow-sm:    0 1px 2px rgba(0,0,0,.4), 0 2px 6px rgba(0,0,0,.4);
+      --shadow:       0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.5), 0 24px 48px rgba(0,0,0,.45);
+      --shadow-lg:    0 4px 12px rgba(0,0,0,.5), 0 24px 60px rgba(0,0,0,.65);
+    }
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","PingFang SC","Helvetica Neue",Arial,sans-serif;
+    background:var(--bg-canvas);
+    color:var(--text);
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    font-variant-numeric:tabular-nums;
+    cursor:default;
+    user-select:none;
+    -webkit-user-select:none;
+  }
+  /* 顶部条 (Liquid Glass) */
+  .topbar{
+    position:sticky; top:0; z-index:50;
+    height:var(--topbar-h);
+    display:flex; align-items:center; gap:10px;
+    padding:0 18px;
+    background:var(--card);
+    backdrop-filter:blur(28px) saturate(180%);
+    -webkit-backdrop-filter:blur(28px) saturate(180%);
+    box-shadow:0 1px 0 var(--line);
+  }
+  .logo{
+    font-size:15px; font-weight:600; letter-spacing:.2px;
+    color:var(--text);
+    margin-right:4px;
+    white-space:nowrap;
+  }
+  .logo .ti{
+    color:var(--accent);
+    font-weight:700;
+    margin-right:4px;
+  }
+  .top-sp{flex:1;}
+  /* 顶部按钮 / 选择器 */
+  .tb-btn{
+    background:transparent;
+    color:var(--text);
+    border:0;
+    border-radius:10px;
+    padding:7px 11px;
+    font-size:13px; font-weight:500;
+    cursor:default;
+    line-height:1;
+    transition:background .12s;
+  }
+  .tb-btn:hover{ background:rgba(0,0,0,.05); }
+  @media (prefers-color-scheme: dark){ .tb-btn:hover{ background:rgba(255,255,255,.08); } }
+  .tb-btn:active{ background:rgba(0,0,0,.09); transform:none; }
+  .tb-btn.primary{ background:var(--accent); color:#fff; }
+  .tb-btn.primary:hover{ background:#0084ff; }
+  .tb-btn.primary:active{ background:var(--accent-pressed); }
+  .tb-btn.danger:hover{ background:rgba(232,57,47,.08); color:var(--red); }
+  .tb-sep{ width:1px; height:22px; background:var(--line); margin:0 4px; }
+  select.proj-sel{
+    appearance:none; -webkit-appearance:none;
+    background:rgba(0,0,0,.04);
+    color:var(--text);
+    border:0;
+    border-radius:10px;
+    padding:7px 28px 7px 12px;
+    font-size:13px; font-weight:600;
+    cursor:default;
+    background-image:url("data:image/svg+xml,%3Csvg width='10' height='6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236e6e73'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;
+    background-position:right 10px center;
+    max-width:260px;
+  }
+  @media (prefers-color-scheme: dark){ select.proj-sel{ background-color:rgba(255,255,255,.08); } }
+  /* 语言切换段控件 (Apple segmented control 风) */
+  .lang{
+    display:inline-flex; gap:0;
+    background:rgba(0,0,0,.04);
+    padding:2px;
+    border-radius:9px;
+    margin-left:6px;
+  }
+  @media (prefers-color-scheme: dark){ .lang{ background:rgba(255,255,255,.08); } }
+  .lang span{
+    font-size:11px; font-weight:500;
+    color:var(--muted);
+    padding:4px 9px;
+    border-radius:7px;
+    line-height:1.2;
+    transition:background .12s, color .12s;
+  }
+  .lang span.on{ background:var(--card-solid); color:var(--text); box-shadow:var(--shadow-sm); }
+  /* 主体 */
+  main{
+    max-width:980px;
+    margin:0 auto;
+    padding:26px 18px 80px;
+  }
+  /* 空项目提示 */
+  .emptytip{
+    text-align:center;
+    color:var(--muted);
+    font-size:15px;
+    padding:80px 16px 60px;
+    line-height:1.7;
+  }
+  .emptytip .em-add{
+    display:inline-block;
+    margin-top:14px;
+  }
+  /* 节点卡片 */
+  .node{
+    background:var(--card-solid);
+    border-radius:var(--radius);
+    margin:0 0 12px;
+    box-shadow:var(--shadow);
+    overflow:hidden;
+    transition:box-shadow .15s;
+  }
+  .node .node{
+    margin:8px 0 0;
+    border-radius:var(--radius-sm);
+    box-shadow:var(--shadow-sm);
+    background:var(--card-deeper);
+  }
+  .node .node .node{
+    background:var(--bg);
+    box-shadow:none;
+    border:1px solid var(--line);  /* 深层用细线分隔, 顶层保留多阴影感 */
+  }
+  .node-head{
+    display:flex; align-items:center; gap:10px;
+    padding:14px 18px;
+    cursor:default;
+    flex-wrap:wrap;
+    min-height:54px;
+  }
+  .node .node .node-head{ padding:11px 14px; min-height:46px; }
+  .node .node .node .node-head{ padding:9px 12px; min-height:40px; }
+  .node-tog{
+    width:14px; height:14px;
+    display:inline-flex; align-items:center; justify-content:center;
+    color:var(--muted-2);
+    font-size:9px;
+    transition:transform .18s;
+    flex:0 0 auto;
+    cursor:default;
+  }
+  .node:not(.collapsed)>.node-head .node-tog{ transform:rotate(90deg); }
+  .node-tog.empty{ visibility:hidden; }
+  .node-name{
+    font-size:16px; font-weight:600;
+    color:var(--text);
+    line-height:1.3;
+  }
+  .node-name .ph{ color:var(--muted); font-weight:400; font-style:italic; }
+  .node .node .node-name{ font-size:14px; font-weight:600; }
+  .node .node .node .node-name{ font-size:13px; font-weight:500; }
+  .node-meta{
+    font-size:12px;
+    color:var(--muted);
+    display:inline-flex; align-items:center; gap:4px;
+  }
+  .node-meta .sep{ color:var(--line); }
+  .node-people{
+    font-size:11px;
+    color:var(--accent);
+    background:rgba(0,113,227,.08);
+    padding:2px 8px;
+    border-radius:8px;
+    white-space:nowrap;
+  }
+  .node-badge{
+    font-size:11px; font-weight:500;
+    padding:2px 8px;
+    border-radius:8px;
+    white-space:nowrap;
+    display:inline-flex; align-items:center; gap:4px;
+  }
+  .b-have   { color:var(--green); background:rgba(47,158,68,.1); }
+  .b-partial{ color:var(--orange);background:rgba(232,131,12,.1);}
+  .b-gap    { color:var(--red);   background:rgba(232,57,47,.1); }
+  .node-cnt{
+    font-size:11px;
+    color:var(--muted-2);
+    background:rgba(0,0,0,.04);
+    padding:1px 8px;
+    border-radius:8px;
+  }
+  @media (prefers-color-scheme: dark){ .node-cnt{ background:rgba(255,255,255,.08); } }
+  .node-sub{
+    font-size:12px;
+    color:var(--muted);
+    width:100%;
+    padding-left:24px;
+    line-height:1.5;
+    margin-top:-4px;
+  }
+  /* 节点控件 (hover 才显, 苹果克制感) */
+  .node-ctrls{
+    margin-left:auto;
+    display:inline-flex; gap:2px;
+    opacity:0;
+    transition:opacity .15s;
+  }
+  .node-head:hover .node-ctrls{ opacity:1; }
+  .node-ctrl{
+    width:30px; height:30px;
+    display:inline-flex; align-items:center; justify-content:center;
+    border-radius:8px;
+    font-size:14px;
+    color:var(--muted);
+    transition:background .12s, color .12s;
+    cursor:default;
+  }
+  .node-ctrl:hover{ background:rgba(0,0,0,.06); color:var(--text); }
+  @media (prefers-color-scheme: dark){ .node-ctrl:hover{ background:rgba(255,255,255,.1); } }
+  .node-ctrl.add:hover{ background:rgba(0,113,227,.12); color:var(--accent); }
+  .node-ctrl.del:hover{ background:rgba(232,57,47,.12); color:var(--red); }
+  .node-ctrl:active{ background:rgba(0,0,0,.12); }
+  /* 节点 body (折叠时隐藏) */
+  .node-body{
+    padding:0 18px 14px 32px;
+  }
+  .node .node .node-body{ padding:0 14px 10px 26px; }
+  .node .node .node .node-body{ padding:0 12px 8px 22px; }
+  .node.collapsed>.node-body{ display:none; }
+  .node-kids{ }
+  /* 加根节点 */
+  .add-root{
+    margin-top:14px; text-align:center;
+  }
+  .add-root .tb-btn{
+    background:var(--card-solid);
+    box-shadow:var(--shadow-sm);
+    padding:10px 18px;
+    font-size:13px;
+    color:var(--accent);
+  }
+  .add-root .tb-btn:hover{ background:var(--card-deeper); }
+  /* 弹窗 */
+  .modal{
+    position:fixed; inset:0; z-index:100;
+    background:rgba(0,0,0,.42);
+    backdrop-filter:blur(8px);
+    -webkit-backdrop-filter:blur(8px);
+    display:none; align-items:center; justify-content:center;
+    padding:20px;
+  }
+  .modal.open{ display:flex; }
+  .modal-box{
+    background:var(--card-solid);
+    border-radius:18px;
+    box-shadow:var(--shadow-lg);
+    max-width:480px; width:100%;
+    padding:24px 26px 20px;
+    user-select:none;
+  }
+  .modal-title{
+    font-size:18px; font-weight:600;
+    margin:0 0 4px;
+    color:var(--text);
+  }
+  .modal-hint{
+    font-size:12px;
+    color:var(--muted);
+    margin-bottom:18px;
+  }
+  .field{ margin-bottom:13px; }
+  .field label{
+    display:block;
+    font-size:11px; font-weight:500;
+    color:var(--muted);
+    margin-bottom:4px;
+    text-transform:uppercase;
+    letter-spacing:.4px;
+  }
+  .field input, .field select{
+    width:100%;
+    background:var(--input-bg);
+    border:1px solid var(--line);
+    border-radius:10px;
+    color:var(--text);
+    font-size:14px;
+    padding:10px 12px;
+    outline:none;
+    font-family:inherit;
+    user-select:text;
+    -webkit-user-select:text;
+    transition:border-color .12s, box-shadow .12s;
+  }
+  .field input:focus, .field select:focus{
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(0,113,227,.15);
+  }
+  .field-row{ display:flex; gap:10px; }
+  .field-row .field{ flex:1; }
+  .modal-btns{
+    display:flex; justify-content:flex-end; gap:8px;
+    margin-top:18px;
+    padding-top:14px;
+    border-top:1px solid var(--line);
+  }
+  .modal-btn{
+    border:0; border-radius:10px;
+    padding:9px 18px;
+    font-size:13px; font-weight:500;
+    cursor:default;
+    font-family:inherit;
+    transition:background .12s;
+  }
+  .mb-cancel{ background:rgba(0,0,0,.05); color:var(--text); }
+  .mb-cancel:hover{ background:rgba(0,0,0,.09); }
+  .mb-save{ background:var(--accent); color:#fff; }
+  .mb-save:hover{ background:#0084ff; }
+  .mb-save:active{ background:var(--accent-pressed); }
+  @media (prefers-color-scheme: dark){
+    .mb-cancel{ background:rgba(255,255,255,.08); }
+    .mb-cancel:hover{ background:rgba(255,255,255,.14); }
+  }
+  /* 状态条 (导入导出反馈) */
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    background:var(--card-solid);
+    color:var(--text);
+    padding:10px 18px;
+    border-radius:12px;
+    font-size:13px;
+    box-shadow:var(--shadow-lg);
+    z-index:200;
+    opacity:0;
+    transition:opacity .2s, transform .2s;
+    pointer-events:none;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(-6px); }
+  /* 隐藏文件输入 */
+  input[type="file"]{ display:none; }
+  /* 嵌入模式 (?embed=1): 隐藏品牌, 紧凑布局 */
+  body.embed .logo{ display:none; }
+  body.embed .topbar{ height:48px; padding:0 12px; }
+  body.embed main{ padding:14px 12px 60px; }
+  /* 滚动条 (苹果细) */
+  ::-webkit-scrollbar{ width:8px; height:8px; }
+  ::-webkit-scrollbar-thumb{ background:rgba(0,0,0,.18); border-radius:4px; }
+  ::-webkit-scrollbar-thumb:hover{ background:rgba(0,0,0,.3); }
+  @media (prefers-color-scheme: dark){
+    ::-webkit-scrollbar-thumb{ background:rgba(255,255,255,.18); }
+    ::-webkit-scrollbar-thumb:hover{ background:rgba(255,255,255,.3); }
+  }
+  /* 响应式 */
+  @media (max-width: 640px){
+    .topbar{ flex-wrap:wrap; height:auto; padding:8px 12px; gap:6px; }
+    .top-sp{ display:none; }
+    .tb-btn{ padding:6px 9px; font-size:12px; }
+    select.proj-sel{ font-size:12px; max-width:160px; }
+    main{ padding:14px 10px 60px; }
+    .node-head{ padding:12px 14px; }
+  }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="logo"><span class="ti">🌳</span><span data-i18n="app_name">项目树</span></div>
+    <select class="proj-sel" id="projSel"></select>
+    <button class="tb-btn" id="newProj" data-i18n="new_proj">＋ 新建项目</button>
+    <button class="tb-btn" id="renameProj" data-i18n="rename_proj">✏️ 改名</button>
+    <button class="tb-btn danger" id="delProj" data-i18n="del_proj">🗑 删项目</button>
+    <div class="tb-sep"></div>
+    <button class="tb-btn" id="expandAll" data-i18n="expand_all">全展开</button>
+    <button class="tb-btn" id="collapseAll" data-i18n="collapse_all">全收起</button>
+    <div class="top-sp"></div>
+    <button class="tb-btn" id="importBtn" data-i18n="import">📤 导入</button>
+    <button class="tb-btn" id="exportBtn" data-i18n="export">📥 导出</button>
+    <input type="file" id="importFile" accept=".json,application/json">
+    <div class="lang" id="langSw">
+      <span data-lang="zh">中</span>
+      <span data-lang="ja">日</span>
+      <span data-lang="en">EN</span>
+    </div>
+  </div>
+
+  <main id="tree"></main>
+
+  <!-- 节点编辑弹窗 -->
+  <div id="nodeModal" class="modal">
+    <div class="modal-box">
+      <div class="modal-title" id="nodeModalTitle">节点</div>
+      <div class="modal-hint" data-i18n="node_hint">5 个字段全部可空,只名称必填。简介支持一句话说明这个节点是做什么的。</div>
+      <div class="field"><label data-i18n="f_name">名称 *</label><input id="fName" maxlength="120" autocomplete="off" spellcheck="false"></div>
+      <div class="field"><label data-i18n="f_director">负责人</label><input id="fDir" maxlength="120" autocomplete="off" spellcheck="false"></div>
+      <div class="field"><label data-i18n="f_subtitle">简介</label><input id="fSub" maxlength="240" autocomplete="off" spellcheck="false"></div>
+      <div class="field-row">
+        <div class="field"><label data-i18n="f_people">人数</label><input id="fPpl" maxlength="40" autocomplete="off" spellcheck="false" placeholder="如 2–3"></div>
+        <div class="field"><label data-i18n="f_badge">状态</label>
+          <select id="fBadge">
+            <option value="" data-i18n="b_none">（无）</option>
+            <option value="have" data-i18n="b_have">在岗</option>
+            <option value="partial" data-i18n="b_partial">部分</option>
+            <option value="gap" data-i18n="b_gap">缺口</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-btns">
+        <button class="modal-btn mb-cancel" id="mCancel" data-i18n="cancel">取消</button>
+        <button class="modal-btn mb-save" id="mSave" data-i18n="save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 项目改名弹窗 -->
+  <div id="projModal" class="modal">
+    <div class="modal-box">
+      <div class="modal-title" id="projModalTitle">项目</div>
+      <div class="field"><label data-i18n="f_proj_name">项目名称 *</label><input id="pName" maxlength="120" autocomplete="off" spellcheck="false"></div>
+      <div class="modal-btns">
+        <button class="modal-btn mb-cancel" id="pCancel" data-i18n="cancel">取消</button>
+        <button class="modal-btn mb-save" id="pSave" data-i18n="save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+<script>
+/* ===========================================================
+   项目树 · v0.1 (MVP 单机版)
+   - 单 HTML 零依赖, 双击就能跑
+   - localStorage 持久化 (key: projtree-v1)
+   - JSON 导入导出 (人类可读, 可分享)
+   - 数据模型预埋 owner / updated_at / by 字段, v0.2 上云零迁移
+   - iframe 友好 (无 X-Frame-Options 阻拦)
+   - ?embed=1 嵌入模式紧凑布局
+   =========================================================== */
+
+/* ---------------- i18n ---------------- */
+const I18N = {
+  zh:{
+    app_name:"项目树",
+    new_proj:"＋ 新建项目", rename_proj:"✏️ 改名", del_proj:"🗑 删项目",
+    expand_all:"全展开", collapse_all:"全收起",
+    import:"📤 导入", export:"📥 导出",
+    proj_first:"我的项目",
+    empty_proj:"这个项目还是空的——从 0 开始搭你的树。",
+    add_root:"＋ 加第一个节点",
+    no_proj:"还没有项目。",
+    node_add_title:"新建节点", node_edit_title:"编辑节点",
+    node_hint:"5 个字段全部可空,只名称必填。简介支持一句话说明这个节点是做什么的。",
+    f_name:"名称 *", f_director:"负责人", f_subtitle:"简介",
+    f_people:"人数", f_badge:"状态",
+    b_none:"（无）", b_have:"在岗", b_partial:"部分", b_gap:"缺口",
+    cancel:"取消", save:"保存",
+    edit:"改", add_child:"加子节点", del_node:"删",
+    del_node_confirm:"删除节点「{name}」?它底下所有子节点也会一起删除。",
+    f_proj_name:"项目名称 *",
+    new_proj_title:"新建项目", rename_proj_title:"项目改名",
+    del_proj_confirm:"删除项目「{name}」?整棵树和里面所有内容都会删除,无法恢复。",
+    del_proj_last:"这是唯一的项目,删了就一个都没了——仍要删除「{name}」吗?",
+    no_can_del_last:"至少保留一个项目。",
+    import_done:"已导入 {n} 个项目",
+    export_done:"已导出 {n} 个项目",
+    import_failed:"导入失败:文件不是合法的项目树 JSON",
+    unnamed:"未命名",
+    by:"by", updated:"更新于",
+  },
+  ja:{
+    app_name:"プロジェクトツリー",
+    new_proj:"＋ 新規プロジェクト", rename_proj:"✏️ 名前変更", del_proj:"🗑 削除",
+    expand_all:"すべて展開", collapse_all:"すべて折りたたむ",
+    import:"📤 インポート", export:"📥 エクスポート",
+    proj_first:"マイプロジェクト",
+    empty_proj:"このプロジェクトはまだ空です——0からツリーを作りましょう。",
+    add_root:"＋ 最初のノードを追加",
+    no_proj:"プロジェクトがありません。",
+    node_add_title:"ノード新規作成", node_edit_title:"ノード編集",
+    node_hint:"5項目すべて任意(名称のみ必須)。説明にはこのノードが何を担うかを1文で。",
+    f_name:"名称 *", f_director:"責任者", f_subtitle:"説明",
+    f_people:"人数", f_badge:"状態",
+    b_none:"（なし）", b_have:"配置済", b_partial:"一部", b_gap:"空き",
+    cancel:"キャンセル", save:"保存",
+    edit:"編集", add_child:"子ノードを追加", del_node:"削除",
+    del_node_confirm:"ノード「{name}」を削除しますか?配下の全ての子ノードも一緒に削除されます。",
+    f_proj_name:"プロジェクト名 *",
+    new_proj_title:"プロジェクト新規作成", rename_proj_title:"プロジェクト名変更",
+    del_proj_confirm:"プロジェクト「{name}」を削除しますか?ツリー全体と中身が全て削除され、復元できません。",
+    del_proj_last:"これが唯一のプロジェクトです。削除すると0になります——それでも「{name}」を削除しますか?",
+    no_can_del_last:"最低1つのプロジェクトを残してください。",
+    import_done:"{n}個のプロジェクトをインポート",
+    export_done:"{n}個のプロジェクトをエクスポート",
+    import_failed:"インポート失敗:プロジェクトツリーJSONとして不正です",
+    unnamed:"無名",
+    by:"by", updated:"更新",
+  },
+  en:{
+    app_name:"Project Tree",
+    new_proj:"＋ New project", rename_proj:"✏️ Rename", del_proj:"🗑 Delete",
+    expand_all:"Expand all", collapse_all:"Collapse all",
+    import:"📤 Import", export:"📥 Export",
+    proj_first:"My project",
+    empty_proj:"This project is empty — start building your tree from scratch.",
+    add_root:"＋ Add first node",
+    no_proj:"No project yet.",
+    node_add_title:"New node", node_edit_title:"Edit node",
+    node_hint:"All 5 fields optional (only name required). Use Description to say what this node is about in one line.",
+    f_name:"Name *", f_director:"Lead", f_subtitle:"Description",
+    f_people:"People", f_badge:"Status",
+    b_none:"(none)", b_have:"Staffed", b_partial:"Partial", b_gap:"Gap",
+    cancel:"Cancel", save:"Save",
+    edit:"Edit", add_child:"Add child", del_node:"Delete",
+    del_node_confirm:"Delete node \"{name}\"? All its descendants will be deleted too.",
+    f_proj_name:"Project name *",
+    new_proj_title:"New project", rename_proj_title:"Rename project",
+    del_proj_confirm:"Delete project \"{name}\"? The entire tree and all content inside will be deleted, unrecoverable.",
+    del_proj_last:"This is the only project — deleting it leaves none. Still delete \"{name}\"?",
+    no_can_del_last:"Keep at least one project.",
+    import_done:"Imported {n} project(s)",
+    export_done:"Exported {n} project(s)",
+    import_failed:"Import failed: file is not a valid project-tree JSON",
+    unnamed:"Unnamed",
+    by:"by", updated:"updated",
+  },
+};
+let lang = (function(){
+  const u=new URLSearchParams(location.search).get('lang');
+  if(u && I18N[u]) return u;
+  return localStorage.getItem('projtree-lang') || (navigator.language||'').toLowerCase().startsWith('ja')?'ja':((navigator.language||'').toLowerCase().startsWith('en')?'en':'zh');
+})();
+function t(k,p){ let s=(I18N[lang]&&I18N[lang][k]); if(s==null) s=I18N.zh[k]; if(s==null) s=k; if(p) for(const x in p) s=String(s).split('{'+x+'}').join(p[x]); return s; }
+function applyI18n(){
+  document.documentElement.lang = (lang==='zh'?'zh-CN':lang);
+  document.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent = t(el.dataset.i18n); });
+  document.title = t('app_name');
+  document.querySelectorAll('#langSw span').forEach(s=>s.classList.toggle('on', s.dataset.lang===lang));
+}
+function setLang(l){ if(!I18N[l]) return; lang=l; localStorage.setItem('projtree-lang',l); applyI18n(); render(); }
+
+/* ---------------- 嵌入模式 ---------------- */
+(function(){ const p=new URLSearchParams(location.search); if(p.get('embed')==='1' || p.get('embed')==='feishu' || p.get('embed')==='wps' || p.get('embed')==='dingtalk'){ document.body.classList.add('embed'); } })();
+
+/* ---------------- 数据模型 ---------------- */
+/* state = { projects: [project], currentId }
+   project = { id, name, owner?, created_at, updated_at, sort_order, nodes:[node] }
+   node = { id, parent_id|null, name, director|null, subtitle|null, sort_order,
+            meta: {people?, badge?, color?, by?}, created_at, updated_at }
+   预埋的 owner/by/updated_at 字段是给 v0.2 云协作用,现在写但不读. */
+const STORE_KEY = 'projtree-v1';
+const state = { projects:[], currentId:null };
+
+function uuid(){ try{ return crypto.randomUUID(); }catch(_){ return 't_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8); } }
+function now(){ return new Date().toISOString(); }
+
+function loadFromStorage(){
+  let raw=null;
+  try{ raw = localStorage.getItem(STORE_KEY); }catch(_){}
+  let d = {};
+  if(raw){ try{ d = JSON.parse(raw)||{}; }catch(_){ d={}; } }
+  state.projects = Array.isArray(d.projects) ? d.projects : [];
+  state.currentId = d.currentId || null;
+  /* 首启动: 种一个空项目 */
+  if(!state.projects.length){
+    const p = { id:uuid(), name:t('proj_first'), owner:null, created_at:now(), updated_at:now(), sort_order:0, nodes:[] };
+    state.projects.push(p);
+    state.currentId = p.id;
+    saveToStorage();
+  }
+  /* 兜底当前项目 */
+  if(!state.currentId || !state.projects.find(p=>p.id===state.currentId)){
+    state.currentId = state.projects[0].id;
+    saveToStorage();
+  }
+  /* URL 参数 ?project=xxx 强制切 */
+  const urlPid = new URLSearchParams(location.search).get('project');
+  if(urlPid && state.projects.find(p=>p.id===urlPid)){ state.currentId = urlPid; }
+}
+function saveToStorage(){
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify({projects:state.projects, currentId:state.currentId})); }catch(_){}
+}
+function curProj(){ return state.projects.find(p=>p.id===state.currentId); }
+function curNodes(){ const p=curProj(); return p?p.nodes:[]; }
+
+/* ---------------- 树辅助 ---------------- */
+function childrenMap(nodes){
+  const m={};
+  nodes.forEach(n=>{ const k=n.parent_id||'__root__'; (m[k]=m[k]||[]).push(n); });
+  for(const k in m) m[k].sort((a,b)=>(a.sort_order-b.sort_order) || String(a.created_at||'').localeCompare(String(b.created_at||'')));
+  return m;
+}
+function depthMap(nodes){
+  const cm=childrenMap(nodes); const d={};
+  (function walk(list,dep){ list.forEach(n=>{ d[n.id]=dep; walk(cm[n.id]||[],dep+1); }); })(cm['__root__']||[],0);
+  return d;
+}
+function subtreeIds(nodes, rootId){
+  const cm=childrenMap(nodes); const out=[];
+  (function walk(id){ out.push(id); (cm[id]||[]).forEach(c=>walk(c.id)); })(rootId);
+  return out;
+}
+
+/* ---------------- UI 状态 (折叠) ---------------- */
+const ui = { collapsed:new Set(), collapseInit:false };
+function initCollapse(){
+  ui.collapsed = new Set();
+  const nodes = curNodes();
+  const cm = childrenMap(nodes);
+  const dm = depthMap(nodes);
+  nodes.forEach(n=>{ if((dm[n.id]||0)>=1 && (cm[n.id]||[]).length) ui.collapsed.add(n.id); });
+  ui.collapseInit = true;
+}
+
+/* ---------------- 渲染 ---------------- */
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function badgeHtml(b){
+  if(!b) return '';
+  const lab = ({have:t('b_have'), partial:t('b_partial'), gap:t('b_gap')})[b] || '';
+  return `<span class="node-badge b-${esc(b)}">${esc(lab)}</span>`;
+}
+function nodeCtrlsHtml(node){
+  return `<span class="node-ctrls">
+    <span class="node-ctrl" data-act="edit" data-id="${esc(node.id)}" title="${esc(t('edit'))}">✏️</span>
+    <span class="node-ctrl add" data-act="addchild" data-id="${esc(node.id)}" title="${esc(t('add_child'))}">＋</span>
+    <span class="node-ctrl del" data-act="del" data-id="${esc(node.id)}" title="${esc(t('del_node'))}">🗑</span>
+  </span>`;
+}
+function renderNode(node, cm){
+  const kids = cm[node.id]||[];
+  const meta = node.meta||{};
+  const collapsed = ui.collapsed.has(node.id);
+  const togCls = kids.length ? '' : ' empty';
+  const cnt = kids.length ? `<span class="node-cnt">${kids.length}</span>` : '';
+  const dir = node.director ? `<span class="node-meta">${esc(node.director)}</span>` : '';
+  const ppl = meta.people ? `<span class="node-people">${esc(meta.people)}</span>` : '';
+  const bdg = badgeHtml(meta.badge);
+  const sep1 = (dir && (ppl||bdg)) ? `<span class="node-meta sep">·</span>` : '';
+  const sep2 = (ppl && bdg) ? `<span class="node-meta sep">·</span>` : '';
+  const sub = node.subtitle ? `<div class="node-sub">${esc(node.subtitle)}</div>` : '';
+  const nameHtml = node.name ? esc(node.name) : `<span class="ph">${esc(t('unnamed'))}</span>`;
+  return `<div class="node${collapsed?' collapsed':''}" data-node="${esc(node.id)}">
+    <div class="node-head" data-nodehead="${esc(node.id)}">
+      <span class="node-tog${togCls}">▶</span>
+      <span class="node-name">${nameHtml}</span>
+      ${dir}${sep1}${ppl}${sep2}${bdg}${cnt}
+      ${nodeCtrlsHtml(node)}
+      ${sub}
+    </div>
+    <div class="node-body">
+      ${kids.length ? `<div class="node-kids">${kids.map(k=>renderNode(k,cm)).join('')}</div>` : ''}
+    </div>
+  </div>`;
+}
+function renderProjSel(){
+  const sel = document.getElementById('projSel');
+  sel.innerHTML = state.projects.map(p=>`<option value="${esc(p.id)}"${p.id===state.currentId?' selected':''}>${esc(p.name||t('unnamed'))}</option>`).join('');
+}
+function render(){
+  renderProjSel();
+  const tree = document.getElementById('tree');
+  const nodes = curNodes();
+  if(!ui.collapseInit) initCollapse();
+  const cm = childrenMap(nodes);
+  const roots = cm['__root__']||[];
+  if(!nodes.length){
+    tree.innerHTML = `<div class="emptytip">${esc(t('empty_proj'))}<div class="em-add"><button class="tb-btn primary" data-act="addroot">${esc(t('add_root'))}</button></div></div>`;
+  } else {
+    tree.innerHTML = roots.map(n=>renderNode(n,cm)).join('') + `<div class="add-root"><button class="tb-btn" data-act="addroot">${esc(t('add_root'))}</button></div>`;
+  }
+}
+
+/* ---------------- 节点 CRUD ---------------- */
+let nodeModalState = null; // {mode:'add'|'edit', id, parentId}
+function openNodeModal(mode, node, parentId){
+  nodeModalState = { mode, id: node?node.id:null, parentId: (parentId!==undefined? parentId : (node?node.parent_id:null)) };
+  const meta = (node && node.meta) || {};
+  document.getElementById('nodeModalTitle').textContent = mode==='add'?t('node_add_title'):t('node_edit_title');
+  document.getElementById('fName').value = node?(node.name||''):'';
+  document.getElementById('fDir').value  = node?(node.director||''):'';
+  document.getElementById('fSub').value  = node?(node.subtitle||''):'';
+  document.getElementById('fPpl').value  = meta.people||'';
+  document.getElementById('fBadge').value= meta.badge||'';
+  document.getElementById('nodeModal').classList.add('open');
+  setTimeout(()=>document.getElementById('fName').focus(),30);
+}
+function closeNodeModal(){ document.getElementById('nodeModal').classList.remove('open'); nodeModalState=null; }
+function saveNodeModal(){
+  const st = nodeModalState; if(!st) return;
+  const name = document.getElementById('fName').value.trim();
+  if(!name){ document.getElementById('fName').focus(); return; }
+  const director = document.getElementById('fDir').value.trim() || null;
+  const subtitle = document.getElementById('fSub').value.trim() || null;
+  const people   = document.getElementById('fPpl').value.trim();
+  const badge    = document.getElementById('fBadge').value || null;
+  const proj = curProj(); if(!proj){ closeNodeModal(); return; }
+  if(st.mode==='add'){
+    const siblings = proj.nodes.filter(n=>(n.parent_id||null)===(st.parentId||null));
+    const meta = {};
+    if(people) meta.people = people;
+    if(badge)  meta.badge  = badge;
+    const row = { id:uuid(), parent_id:st.parentId||null, name, director, subtitle, sort_order:siblings.length, meta, created_at:now(), updated_at:now() };
+    proj.nodes.push(row);
+    proj.updated_at = now();
+    if(st.parentId) ui.collapsed.delete(st.parentId);
+  } else {
+    const node = proj.nodes.find(n=>n.id===st.id); if(node){
+      node.name = name; node.director = director; node.subtitle = subtitle;
+      node.meta = Object.assign({}, node.meta||{});
+      if(people) node.meta.people = people; else delete node.meta.people;
+      if(badge)  node.meta.badge  = badge;  else delete node.meta.badge;
+      node.updated_at = now();
+      proj.updated_at = now();
+    }
+  }
+  saveToStorage();
+  closeNodeModal();
+  render();
+}
+function delNode(id){
+  const proj = curProj(); if(!proj) return;
+  const node = proj.nodes.find(n=>n.id===id);
+  if(!node) return;
+  if(!confirm(t('del_node_confirm',{name:node.name||t('unnamed')}))) return;
+  const ids = subtreeIds(proj.nodes, id);
+  proj.nodes = proj.nodes.filter(n=>!ids.includes(n.id));
+  proj.updated_at = now();
+  saveToStorage();
+  render();
+}
+
+/* ---------------- 项目 CRUD ---------------- */
+let projModalState = null; // {mode:'new'|'rename'}
+function openProjModal(mode){
+  projModalState = { mode };
+  document.getElementById('projModalTitle').textContent = mode==='new'?t('new_proj_title'):t('rename_proj_title');
+  const p = curProj();
+  document.getElementById('pName').value = (mode==='rename' && p)?p.name:'';
+  document.getElementById('projModal').classList.add('open');
+  setTimeout(()=>document.getElementById('pName').focus(),30);
+}
+function closeProjModal(){ document.getElementById('projModal').classList.remove('open'); projModalState=null; }
+function saveProjModal(){
+  const st = projModalState; if(!st) return;
+  const name = document.getElementById('pName').value.trim();
+  if(!name){ document.getElementById('pName').focus(); return; }
+  if(st.mode==='new'){
+    const p = { id:uuid(), name, owner:null, created_at:now(), updated_at:now(), sort_order:state.projects.length, nodes:[] };
+    state.projects.push(p);
+    state.currentId = p.id;
+    ui.collapseInit = false;
+  } else {
+    const p = curProj(); if(p){ p.name = name; p.updated_at = now(); }
+  }
+  saveToStorage();
+  closeProjModal();
+  render();
+}
+function delProject(){
+  const p = curProj(); if(!p) return;
+  const only = state.projects.length<=1;
+  const msg = only ? t('del_proj_last',{name:p.name}) : t('del_proj_confirm',{name:p.name});
+  if(!confirm(msg)) return;
+  state.projects = state.projects.filter(x=>x.id!==p.id);
+  if(!state.projects.length){
+    /* 不留空, 自动再造一个空项目 (保证至少一棵树) */
+    const np = { id:uuid(), name:t('proj_first'), owner:null, created_at:now(), updated_at:now(), sort_order:0, nodes:[] };
+    state.projects.push(np);
+    state.currentId = np.id;
+  } else {
+    state.currentId = state.projects[0].id;
+  }
+  ui.collapseInit = false;
+  saveToStorage();
+  render();
+}
+function switchProject(pid){
+  if(!pid || pid===state.currentId) return;
+  state.currentId = pid;
+  ui.collapseInit = false;
+  saveToStorage();
+  render();
+}
+
+/* ---------------- 导入 / 导出 JSON ---------------- */
+function exportJson(){
+  const payload = {
+    format:'projtree',
+    version:1,
+    exported_at: now(),
+    projects: state.projects
+  };
+  const blob = new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'projtree-' + (new Date().toISOString().slice(0,10)) + '.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 500);
+  toast(t('export_done',{n:state.projects.length}));
+}
+function importJsonText(text){
+  let d;
+  try{ d = JSON.parse(text); }catch(_){ toast(t('import_failed')); return; }
+  if(!d || d.format!=='projtree' || !Array.isArray(d.projects)){ toast(t('import_failed')); return; }
+  /* 合并:同 id 覆盖, 不同 id 追加 */
+  const map = {};
+  state.projects.forEach(p=>{ map[p.id]=p; });
+  d.projects.forEach(p=>{ if(p && p.id){ map[p.id] = p; } });
+  state.projects = Object.values(map);
+  /* 切到导入的第一个项目 */
+  if(d.projects.length) state.currentId = d.projects[0].id;
+  ui.collapseInit = false;
+  saveToStorage();
+  render();
+  toast(t('import_done',{n:d.projects.length}));
+}
+
+/* ---------------- Toast ---------------- */
+let toastTimer = null;
+function toast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>el.classList.remove('show'), 2200);
+}
+
+/* ---------------- 事件绑定 ---------------- */
+/* 树区点击 */
+document.getElementById('tree').addEventListener('click', e=>{
+  const act = e.target.closest('[data-act]');
+  if(act){
+    e.preventDefault(); e.stopPropagation();
+    const a = act.dataset.act, id = act.dataset.id;
+    if(a==='edit'){ const p=curProj(); const n=p&&p.nodes.find(x=>x.id===id); if(n) openNodeModal('edit',n); }
+    else if(a==='addchild'){ openNodeModal('add', null, id); }
+    else if(a==='addroot'){ openNodeModal('add', null, null); }
+    else if(a==='del'){ delNode(id); }
+    return;
+  }
+  const nh = e.target.closest('[data-nodehead]');
+  if(nh){
+    const id = nh.dataset.nodehead;
+    ui.collapsed.has(id) ? ui.collapsed.delete(id) : ui.collapsed.add(id);
+    render();
+  }
+});
+/* 顶栏 */
+document.getElementById('projSel').onchange = e=>switchProject(e.target.value);
+document.getElementById('newProj').onclick = ()=>openProjModal('new');
+document.getElementById('renameProj').onclick = ()=>openProjModal('rename');
+document.getElementById('delProj').onclick = delProject;
+document.getElementById('expandAll').onclick = ()=>{ ui.collapsed.clear(); render(); };
+document.getElementById('collapseAll').onclick = ()=>{
+  const cm = childrenMap(curNodes());
+  ui.collapsed = new Set(curNodes().filter(n=>(cm[n.id]||[]).length).map(n=>n.id));
+  render();
+};
+document.getElementById('exportBtn').onclick = exportJson;
+document.getElementById('importBtn').onclick = ()=>document.getElementById('importFile').click();
+document.getElementById('importFile').onchange = e=>{
+  const f = e.target.files && e.target.files[0]; e.target.value='';
+  if(!f) return;
+  const r = new FileReader();
+  r.onload = ()=>importJsonText(String(r.result||''));
+  r.readAsText(f);
+};
+/* 弹窗 */
+document.getElementById('mCancel').onclick = closeNodeModal;
+document.getElementById('mSave').onclick   = saveNodeModal;
+document.getElementById('nodeModal').addEventListener('click', e=>{ if(e.target.id==='nodeModal') closeNodeModal(); });
+document.getElementById('fName').addEventListener('keydown', e=>{ if(e.key==='Enter') saveNodeModal(); });
+document.getElementById('pCancel').onclick = closeProjModal;
+document.getElementById('pSave').onclick   = saveProjModal;
+document.getElementById('projModal').addEventListener('click', e=>{ if(e.target.id==='projModal') closeProjModal(); });
+document.getElementById('pName').addEventListener('keydown', e=>{ if(e.key==='Enter') saveProjModal(); });
+/* 语言切换 */
+document.querySelectorAll('#langSw span').forEach(s=>{ s.onclick = ()=>setLang(s.dataset.lang); });
+/* ESC 关弹窗 */
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){ closeNodeModal(); closeProjModal(); }
+});
+
+/* ---------------- 启动 ---------------- */
+applyI18n();
+loadFromStorage();
+render();
+</script>
+</body>
+</html>

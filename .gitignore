@@ -1,0 +1,25 @@
+# 商业策略不公开
+BUSINESS_PLAN.md
+
+# macOS
+.DS_Store
+
+# Editor
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Node / 未来若加构建
+node_modules/
+dist/
+build/
+
+# Env
+.env
+.env.*
+
+# Logs / tmp
+/tmp/
+*.log

@@ -1,0 +1,12 @@
+{
+  "name": "arggjarvs-projtree-marketplace",
+  "description": "arggjarvs Claude marketplace — starting with projtree (collaborative org-tree)",
+  "plugins": [
+    {
+      "name": "projtree",
+      "description": "Lightweight collaborative org-tree builder — single-HTML, zero deps, Apple-aesthetic",
+      "version": "0.1.0",
+      "path": "."
+    }
+  ]
+}

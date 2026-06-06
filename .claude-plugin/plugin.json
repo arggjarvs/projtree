@@ -1,0 +1,21 @@
+{
+  "name": "projtree",
+  "description": "Lightweight collaborative org-tree builder — single-HTML, zero deps, Apple-aesthetic. Editable recursive trees with five-field nodes (name / lead / desc / people / status).",
+  "version": "0.1.0",
+  "author": {
+    "name": "arggjarvs"
+  },
+  "homepage": "https://arggjarvs.github.io/projtree/",
+  "repository": "https://github.com/arggjarvs/projtree",
+  "license": "MIT",
+  "keywords": [
+    "org-tree",
+    "okr",
+    "wbs",
+    "team-structure",
+    "collaborative",
+    "single-html",
+    "zero-deps",
+    "apple-aesthetic"
+  ]
+}

@@ -975,8 +975,16 @@ function loadFromStorage(){
   if(urlPid && state.projects.find(p=>p.id===urlPid)){ state.currentId = urlPid; }
 }
 function saveToStorage(){
-  try{ localStorage.setItem(STORE_KEY, JSON.stringify({projects:state.projects, currentId:state.currentId})); }catch(_){}
-  schedulePush(); // v0.3: 本地写完后异步推送云端 (800ms 防抖, 未登录时 no-op)
+  try{
+    localStorage.setItem(STORE_KEY, JSON.stringify({projects:state.projects, currentId:state.currentId}));
+  }catch(e){
+    // QuotaExceededError：本地存满了，数据仍在内存，云端登录状态下会同步
+    if(e && e.name==='QuotaExceededError'){
+      console.warn('[projtree] localStorage quota exceeded — data lives in memory & cloud only');
+      toast('⚠️ 本地存储已满，数据仅保存在云端（请登录）');
+    }
+  }
+  schedulePush();
 }
 function saveToLocalOnly(){
   try{ localStorage.setItem(STORE_KEY, JSON.stringify({projects:state.projects, currentId:state.currentId})); }catch(_){}
@@ -1512,8 +1520,13 @@ async function pushToCloud(){
       }))
     );
     if(nodeRows.length){
-      const { error: nErr } = await cloud.sb.from('nodes').upsert(nodeRows, { onConflict:'id' });
-      if(nErr) throw nErr;
+      // 分块 upsert：每批 200 行，防止大工作区单请求超限
+      const CHUNK = 200;
+      for(let i = 0; i < nodeRows.length; i += CHUNK){
+        const { error: nErr } = await cloud.sb.from('nodes')
+          .upsert(nodeRows.slice(i, i + CHUNK), { onConflict:'id' });
+        if(nErr) throw nErr;
+      }
     }
     renderSyncIndicator('synced');
   } catch(e){

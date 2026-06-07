@@ -719,6 +719,8 @@ const I18N = {
     proj_template:"模板",
     tmpl_default:"通用", tmpl_org:"组织架构", tmpl_okr:"OKR",
     tmpl_wbs:"项目分解", tmpl_customer:"客户管道", tmpl_content:"内容日历",
+    tmpl_hiring:"招聘漏斗", tmpl_roadmap:"产品路线图", tmpl_risk:"风险追踪",
+    tmpl_event:"活动策划", tmpl_gtd:"GTD 任务", tmpl_strategy:"战略地图",
     /* v0.3 云端协作 */
     auth_title:"登录项目树", auth_sub:"登录后数据自动备份至云端，可邀请团队成员共同编辑",
     auth_email_ph:"your@email.com", auth_send_link:"发送登录链接",
@@ -766,6 +768,8 @@ const I18N = {
     proj_template:"テンプレート",
     tmpl_default:"汎用", tmpl_org:"組織図", tmpl_okr:"OKR",
     tmpl_wbs:"WBS", tmpl_customer:"顧客パイプ", tmpl_content:"コンテンツカレンダー",
+    tmpl_hiring:"採用漏斗", tmpl_roadmap:"ロードマップ", tmpl_risk:"リスク管理",
+    tmpl_event:"イベント計画", tmpl_gtd:"GTD タスク", tmpl_strategy:"戦略マップ",
     /* v0.3 */
     auth_title:"プロジェクトツリーにログイン", auth_sub:"ログインするとデータが自動でクラウドに保存され、チームメンバーを招待できます",
     auth_email_ph:"your@email.com", auth_send_link:"ログインリンクを送信",
@@ -813,6 +817,8 @@ const I18N = {
     proj_template:"Template",
     tmpl_default:"General", tmpl_org:"Org Chart", tmpl_okr:"OKR",
     tmpl_wbs:"WBS", tmpl_customer:"Customer Pipeline", tmpl_content:"Content Calendar",
+    tmpl_hiring:"Hiring Funnel", tmpl_roadmap:"Product Roadmap", tmpl_risk:"Risk Tracker",
+    tmpl_event:"Event Planner", tmpl_gtd:"GTD Tasks", tmpl_strategy:"Strategy Map",
     /* v0.3 */
     auth_title:"Sign in to Project Tree", auth_sub:"Sign in to back up your data to the cloud and invite teammates to collaborate",
     auth_email_ph:"your@email.com", auth_send_link:"Send login link",
@@ -850,7 +856,7 @@ function setLang(l){ if(!I18N[l]) return; lang=l; localStorage.setItem('projtree
 /* 每个模板定义字段标签和状态标签的覆盖值 (各语言).
    tpl(key) 优先读当前项目的模板覆盖, 回落到通用 t(key).
    这就是"规范基线": 模板约定了字段的业务语义, 随 JSON 携带. */
-const TEMPLATE_IDS = ['default','org','okr','wbs','customer','content'];
+const TEMPLATE_IDS = ['default','org','okr','wbs','customer','content','hiring','roadmap','risk','event','gtd','strategy'];
 const TEMPLATE_LABELS = {
   org:{
     zh:{ f_director:'负责人', f_subtitle:'职责说明', f_people:'人数', b_have:'在岗', b_partial:'部分', b_gap:'缺口' },
@@ -876,6 +882,36 @@ const TEMPLATE_LABELS = {
     zh:{ f_director:'编辑', f_subtitle:'受众 + 角度', f_people:'贡献者', b_have:'已排期', b_partial:'已分工', b_gap:'无负责人' },
     en:{ f_director:'Editor', f_subtitle:'Audience + Angle', f_people:'Contributors', b_have:'Scheduled', b_partial:'Assigned', b_gap:'No owner' },
     ja:{ f_director:'編集者', f_subtitle:'対象読者＋切り口', f_people:'貢献者', b_have:'スケジュール済', b_partial:'担当確定', b_gap:'担当なし' },
+  },
+  hiring:{
+    zh:{ f_director:'招聘负责人', f_subtitle:'岗位要求概述', f_people:'招聘名额', b_have:'已入职', b_partial:'面试中', b_gap:'待启动' },
+    en:{ f_director:'Recruiter', f_subtitle:'Job requirements', f_people:'Openings', b_have:'Hired', b_partial:'Interviewing', b_gap:'Not started' },
+    ja:{ f_director:'採用担当', f_subtitle:'求人要件の概要', f_people:'採用人数', b_have:'入職済', b_partial:'面接中', b_gap:'未着手' },
+  },
+  roadmap:{
+    zh:{ f_director:'产品负责人', f_subtitle:'用户价值描述', f_people:'开发人力', b_have:'已上线', b_partial:'开发中', b_gap:'规划中' },
+    en:{ f_director:'PM', f_subtitle:'User value', f_people:'Dev effort', b_have:'Launched', b_partial:'In development', b_gap:'Planned' },
+    ja:{ f_director:'PM', f_subtitle:'ユーザー価値', f_people:'開発工数', b_have:'リリース済', b_partial:'開発中', b_gap:'計画中' },
+  },
+  risk:{
+    zh:{ f_director:'风险责任人', f_subtitle:'影响范围描述', f_people:'涉及人数', b_have:'已缓解', b_partial:'监控中', b_gap:'高危' },
+    en:{ f_director:'Risk owner', f_subtitle:'Impact description', f_people:'People affected', b_have:'Mitigated', b_partial:'Monitoring', b_gap:'High risk' },
+    ja:{ f_director:'リスク担当者', f_subtitle:'影響範囲', f_people:'影響人数', b_have:'緩和済', b_partial:'監視中', b_gap:'高リスク' },
+  },
+  event:{
+    zh:{ f_director:'活动负责人', f_subtitle:'活动目标', f_people:'参与人数', b_have:'已就绪', b_partial:'筹备中', b_gap:'待分配' },
+    en:{ f_director:'Event lead', f_subtitle:'Event goal', f_people:'Attendees', b_have:'Ready', b_partial:'Preparing', b_gap:'Unassigned' },
+    ja:{ f_director:'イベント責任者', f_subtitle:'イベント目標', f_people:'参加人数', b_have:'準備完了', b_partial:'準備中', b_gap:'未割当' },
+  },
+  gtd:{
+    zh:{ f_director:'情境', f_subtitle:'下一步行动', f_people:'预计工时', b_have:'已完成', b_partial:'进行中', b_gap:'待定' },
+    en:{ f_director:'Context', f_subtitle:'Next action', f_people:'Est. hours', b_have:'Completed', b_partial:'In progress', b_gap:'Pending' },
+    ja:{ f_director:'コンテキスト', f_subtitle:'次のアクション', f_people:'予想時間', b_have:'完了', b_partial:'進行中', b_gap:'保留' },
+  },
+  strategy:{
+    zh:{ f_director:'战略负责人', f_subtitle:'战略意图', f_people:'资源投入', b_have:'领先', b_partial:'符合预期', b_gap:'落后' },
+    en:{ f_director:'Strategy owner', f_subtitle:'Strategic intent', f_people:'Resources', b_have:'Ahead', b_partial:'On track', b_gap:'Behind' },
+    ja:{ f_director:'戦略責任者', f_subtitle:'戦略意図', f_people:'投入リソース', b_have:'先行', b_partial:'順調', b_gap:'遅延' },
   },
 };
 function tpl(key){

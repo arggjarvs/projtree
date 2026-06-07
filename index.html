@@ -471,6 +471,78 @@
     main{ padding:14px 10px 60px; }
     .node-head{ padding:12px 14px; }
   }
+  /* ---- v0.3: cloud UI ---- */
+  .sync-dot{
+    width:7px; height:7px; border-radius:50%;
+    background:var(--green); flex:0 0 auto;
+    transition:background .3s;
+  }
+  .sync-dot.syncing{ background:var(--orange); animation:sync-pulse .9s infinite; }
+  .sync-dot.error{ background:var(--red); }
+  @keyframes sync-pulse{ 0%,100%{opacity:1} 50%{opacity:.35} }
+  .cloud-btn{
+    background:var(--accent); color:#fff; border:0; border-radius:10px;
+    padding:6px 13px; font-size:12px; font-weight:600;
+    cursor:default; white-space:nowrap; line-height:1;
+    transition:background .12s;
+  }
+  .cloud-btn:hover{ background:#0084ff; }
+  .cloud-btn:active{ background:var(--accent-pressed); }
+  .cloud-btn.signed-in{
+    background:rgba(0,113,227,.1); color:var(--accent); font-weight:500;
+  }
+  .cloud-btn.signed-in:hover{ background:rgba(0,113,227,.16); }
+  .auth-box{ text-align:center; padding:8px 0 4px; }
+  .auth-logo{ font-size:40px; margin-bottom:12px; }
+  .auth-title{ font-size:20px; font-weight:600; margin-bottom:6px; }
+  .auth-sub{ font-size:13px; color:var(--muted); margin-bottom:24px; line-height:1.5; }
+  .auth-google-btn{
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    width:100%; padding:12px 16px;
+    background:var(--input-bg); border:1.5px solid var(--line);
+    border-radius:12px; font-size:14px; font-weight:500;
+    color:var(--text); cursor:default;
+    transition:border-color .12s, box-shadow .12s;
+  }
+  .auth-google-btn:hover{ border-color:var(--accent); box-shadow:0 0 0 3px rgba(0,113,227,.12); }
+  .auth-offline-link{
+    display:block; margin-top:14px;
+    font-size:12px; color:var(--muted); cursor:default;
+  }
+  .auth-offline-link:hover{ color:var(--text); }
+  .invite-link-row{
+    display:flex; gap:8px; align-items:center; margin-top:8px;
+  }
+  .invite-link-input{
+    flex:1; font-size:12px; color:var(--muted);
+    background:var(--input-bg); border:1px solid var(--line);
+    border-radius:8px; padding:8px 10px;
+    user-select:text; -webkit-user-select:text; outline:none;
+  }
+  .invite-copy-btn{
+    flex:0 0 auto; padding:8px 12px;
+    background:var(--accent); color:#fff; border:0;
+    border-radius:8px; font-size:12px; font-weight:500; cursor:default;
+  }
+  .invite-copy-btn:hover{ background:#0084ff; }
+  .member-list{ margin-top:16px; }
+  .member-row{
+    display:flex; align-items:center; gap:8px;
+    padding:8px 0; border-bottom:1px solid var(--line);
+    font-size:13px;
+  }
+  .member-row:last-child{ border-bottom:none; }
+  .member-avatar{
+    width:28px; height:28px; border-radius:50%;
+    background:rgba(0,113,227,.1);
+    display:flex; align-items:center; justify-content:center;
+    font-size:11px; font-weight:600; color:var(--accent); flex:0 0 auto;
+  }
+  .member-role{
+    font-size:11px; color:var(--muted);
+    background:rgba(0,0,0,.04); border-radius:6px; padding:1px 6px;
+  }
+  @media (prefers-color-scheme:dark){ .member-role{ background:rgba(255,255,255,.08); } }
 </style>
 </head>
 <body>
@@ -493,6 +565,11 @@
       <span data-lang="ja">日</span>
       <span data-lang="en">EN</span>
     </div>
+    <!-- v0.3: cloud controls (hidden when SUPABASE_CONFIG not set) -->
+    <div class="tb-sep" id="cloudSep" style="display:none"></div>
+    <span class="sync-dot" id="syncDot" style="display:none" title=""></span>
+    <button class="tb-btn" id="inviteBtn" style="display:none" data-i18n="invite_member">邀请成员</button>
+    <button class="cloud-btn" id="cloudBtn" style="display:none"></button>
   </div>
 
   <main id="tree"></main>
@@ -545,22 +622,60 @@
     </div>
   </div>
 
+  <!-- v0.3: 登录弹窗 -->
+  <div id="authModal" class="modal">
+    <div class="modal-box" style="max-width:380px;">
+      <div class="auth-box">
+        <div class="auth-logo">🌳</div>
+        <div class="auth-title" data-i18n="auth_title">登录项目树</div>
+        <div class="auth-sub" data-i18n="auth_sub">登录后数据自动备份至云端，可邀请团队成员共同编辑</div>
+        <button class="auth-google-btn" id="authGoogleBtn">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+            <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
+            <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+            <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+          </svg>
+          <span data-i18n="auth_google">使用 Google 账号登录</span>
+        </button>
+        <span class="auth-offline-link" id="authOfflineLink" data-i18n="auth_offline">继续使用本地版（数据不同步）</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- v0.3: 邀请成员弹窗 -->
+  <div id="inviteModal" class="modal">
+    <div class="modal-box" style="max-width:420px;">
+      <div class="modal-title" data-i18n="invite_title">邀请成员</div>
+      <div class="modal-hint" data-i18n="invite_hint">分享以下链接，对方点击后即可加入你的工作区</div>
+      <div class="invite-link-row">
+        <input class="invite-link-input" id="inviteLinkInput" readonly placeholder="生成中…">
+        <button class="invite-copy-btn" id="inviteCopyBtn" data-i18n="copy">复制</button>
+      </div>
+      <div class="modal-hint" style="margin-top:8px;font-size:11px" data-i18n="invite_expire">链接 7 天内有效，仅限一次使用</div>
+      <div class="member-list" id="memberList"></div>
+      <div class="modal-btns">
+        <button class="modal-btn mb-cancel" id="inviteClose" data-i18n="close">关闭</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast" class="toast"></div>
 
 <script>
 /* ===========================================================
-   项目树 · v0.2
-   新增:
-   - 字段模板系统: 建项目时选模板, 字段名/状态标签自动适配用例
-     (通用 / 组织架构 / OKR / 项目分解 / 客户管道 / 内容日历)
-   - 节点批注: 每节点可加多行批注, 卡片上展示
-   - 规范基线: 模板定义字段语义, 随 JSON 导出携带对齐约定
+   项目树 · v0.3
+   v0.3 新增:
+   - Supabase 云端协作: Google 登录, 工作区, 实时多人同步
+   - 邀请成员: 生成 7 天有效邀请链接, 接受即加入工作区
+   - Local-first: localStorage 主写入, 云端后台异步同步
+   - SUPABASE_CONFIG 为空 = 纯离线模式 (零性能开销)
+   v0.2 保留:
+   - 字段模板系统 (6 种场景模板), 节点批注
    v0.1 保留:
    - 单 HTML 零依赖, 双击就能跑
    - localStorage 持久化 (key: projtree-v1)
-   - JSON 导入导出 (人类可读, 可分享)
-   - 数据模型预埋 owner / updated_at / by 字段, v0.3 上云零迁移
-   - iframe 友好 (?embed=1 嵌入模式紧凑布局)
+   - JSON 导入导出, iframe 嵌入 (?embed=1)
    =========================================================== */
 
 /* ---------------- i18n ---------------- */
@@ -597,6 +712,18 @@ const I18N = {
     proj_template:"模板",
     tmpl_default:"通用", tmpl_org:"组织架构", tmpl_okr:"OKR",
     tmpl_wbs:"项目分解", tmpl_customer:"客户管道", tmpl_content:"内容日历",
+    /* v0.3 云端协作 */
+    auth_title:"登录项目树", auth_sub:"登录后数据自动备份至云端，可邀请团队成员共同编辑",
+    auth_google:"使用 Google 账号登录", auth_offline:"继续使用本地版（数据不同步）",
+    invite_title:"邀请成员", invite_hint:"分享以下链接，对方点击后即可加入你的工作区",
+    invite_expire:"链接 7 天内有效，仅限一次使用",
+    invite_member:"邀请成员", copy:"复制", close:"关闭",
+    syncing:"同步中…", synced:"已同步", sync_error:"同步失败，数据已在本地",
+    sign_in:"登录", click_signout:"点击退出登录",
+    migrated_toast:"本地数据已同步到云端 ☁",
+    invite_invalid:"邀请链接无效", invite_used:"该邀请链接已被使用",
+    invite_expired:"邀请链接已过期", invite_joined:"成功加入工作区 🎉",
+    ws_label:"工作区",
   },
   ja:{
     app_name:"プロジェクトツリー",
@@ -630,6 +757,18 @@ const I18N = {
     proj_template:"テンプレート",
     tmpl_default:"汎用", tmpl_org:"組織図", tmpl_okr:"OKR",
     tmpl_wbs:"WBS", tmpl_customer:"顧客パイプ", tmpl_content:"コンテンツカレンダー",
+    /* v0.3 */
+    auth_title:"プロジェクトツリーにログイン", auth_sub:"ログインするとデータが自動でクラウドに保存され、チームメンバーを招待できます",
+    auth_google:"Google アカウントでログイン", auth_offline:"ローカル版を続けて使う（同期なし）",
+    invite_title:"メンバーを招待", invite_hint:"以下のリンクを共有すると、クリックするだけでワークスペースに参加できます",
+    invite_expire:"リンクは7日間有効・1回限り使用可",
+    invite_member:"メンバー招待", copy:"コピー", close:"閉じる",
+    syncing:"同期中…", synced:"同期済み", sync_error:"同期失敗（データはローカルに保存済み）",
+    sign_in:"ログイン", click_signout:"クリックしてログアウト",
+    migrated_toast:"ローカルデータをクラウドに同期しました ☁",
+    invite_invalid:"招待リンクが無効です", invite_used:"この招待リンクはすでに使用されています",
+    invite_expired:"招待リンクの有効期限が切れています", invite_joined:"ワークスペースに参加しました 🎉",
+    ws_label:"ワークスペース",
   },
   en:{
     app_name:"Project Tree",
@@ -663,6 +802,18 @@ const I18N = {
     proj_template:"Template",
     tmpl_default:"General", tmpl_org:"Org Chart", tmpl_okr:"OKR",
     tmpl_wbs:"WBS", tmpl_customer:"Customer Pipeline", tmpl_content:"Content Calendar",
+    /* v0.3 */
+    auth_title:"Sign in to Project Tree", auth_sub:"Sign in to back up your data to the cloud and invite teammates to collaborate",
+    auth_google:"Sign in with Google", auth_offline:"Continue offline (no sync)",
+    invite_title:"Invite members", invite_hint:"Share this link — anyone who clicks it will join your workspace",
+    invite_expire:"Link valid for 7 days, single use",
+    invite_member:"Invite members", copy:"Copy", close:"Close",
+    syncing:"Syncing…", synced:"Synced", sync_error:"Sync failed — data saved locally",
+    sign_in:"Sign in", click_signout:"Click to sign out",
+    migrated_toast:"Local data synced to the cloud ☁",
+    invite_invalid:"Invalid invite link", invite_used:"This invite link has already been used",
+    invite_expired:"This invite link has expired", invite_joined:"Joined workspace 🎉",
+    ws_label:"Workspace",
   },
 };
 let lang = (function(){
@@ -775,6 +926,10 @@ function loadFromStorage(){
   if(urlPid && state.projects.find(p=>p.id===urlPid)){ state.currentId = urlPid; }
 }
 function saveToStorage(){
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify({projects:state.projects, currentId:state.currentId})); }catch(_){}
+  schedulePush(); // v0.3: 本地写完后异步推送云端 (800ms 防抖, 未登录时 no-op)
+}
+function saveToLocalOnly(){
   try{ localStorage.setItem(STORE_KEY, JSON.stringify({projects:state.projects, currentId:state.currentId})); }catch(_){}
 }
 function curProj(){ return state.projects.find(p=>p.id===state.currentId); }
@@ -1052,6 +1207,400 @@ function toast(msg){
   toastTimer = setTimeout(()=>el.classList.remove('show'), 2200);
 }
 
+/* ================================================================
+   v0.3: Supabase 云端协作模块
+   ─────────────────────────────────────────────────────────────────
+   架构: Local-first + 后台异步同步
+   · localStorage 始终是主写入 (同步, 零延迟, 离线全功能)
+   · Supabase 在后台异步同步 (800ms 防抖)
+   · SUPABASE_CONFIG.url 为空 = 纯离线模式, SDK 不加载
+   配置: 在下方填入 Supabase 项目地址和 anon key
+   详见 SETUP.md 中的五步配置教程
+   ================================================================ */
+
+const SUPABASE_CONFIG = {
+  url: '',   // e.g. 'https://xxxxxxxxxxxx.supabase.co'
+  key: '',   // Supabase anon/public key (非 secret key!)
+};
+
+/* ── 云端运行时状态 ── */
+const cloud = {
+  sb: null,          // Supabase client (懒加载)
+  session: null,     // 当前登录 session
+  workspaceId: null, // 当前工作区 UUID
+  pushTimer: null,   // 防抖推送计时器
+  channel: null,     // Realtime 订阅频道
+  members: [],       // 工作区成员列表缓存
+  _pendingInvite: null, // 待处理的邀请 token
+  _rtTimer: null,    // realtime 合并延迟计时器
+};
+
+function cloudEnabled(){ return !!(SUPABASE_CONFIG.url && SUPABASE_CONFIG.key); }
+
+/* ── 懒加载 Supabase SDK (只在用户触发登录时才从 CDN 加载) ── */
+function loadSupabaseSdk(){
+  return new Promise((resolve, reject)=>{
+    if(window.supabase){ resolve(window.supabase); return; }
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+    s.onload = ()=> resolve(window.supabase);
+    s.onerror = ()=> reject(new Error('Failed to load Supabase SDK'));
+    document.head.appendChild(s);
+  });
+}
+
+/* ── 页面加载时初始化云端 ── */
+async function cloudInit(){
+  if(!cloudEnabled()) return;
+  try{
+    const supabase = await loadSupabaseSdk();
+    cloud.sb = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.key);
+    // 监听 auth 状态变化
+    cloud.sb.auth.onAuthStateChange((event, session)=>{
+      if(event==='SIGNED_IN' && session && (!cloud.session || cloud.session.user.id !== session.user.id)){
+        onCloudSignIn(session);
+      } else if(event==='SIGNED_OUT'){
+        onCloudSignOut();
+      }
+    });
+    // 检查已有 session (刷新页面后保持登录状态)
+    const { data:{ session } } = await cloud.sb.auth.getSession();
+    if(session){
+      await onCloudSignIn(session);
+    } else {
+      // 检查 URL 中是否带邀请 token
+      const inviteToken = new URLSearchParams(location.search).get('invite');
+      if(inviteToken){ openAuthModal(inviteToken); }
+      else { renderCloudUI(); }
+    }
+  } catch(e){
+    console.warn('[cloud] init error:', e);
+    renderCloudUI();
+  }
+}
+
+/* ── 打开/关闭登录弹窗 ── */
+function openAuthModal(pendingInvite){
+  document.getElementById('authModal').classList.add('open');
+  cloud._pendingInvite = pendingInvite || null;
+}
+function closeAuthModal(){
+  document.getElementById('authModal').classList.remove('open');
+}
+
+/* ── Google OAuth 登录 (OAuth redirect, 不需要弹窗) ── */
+async function cloudSignIn(){
+  if(!cloud.sb) return;
+  try{
+    const redirectTo = location.href.split('?')[0].split('#')[0];
+    const { error } = await cloud.sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo }
+    });
+    if(error) throw error;
+  } catch(e){
+    console.error('[cloud] signIn error:', e);
+    toast(t('sync_error'));
+  }
+}
+
+/* ── 退出登录 ── */
+async function cloudSignOut(){
+  if(!cloud.sb) return;
+  try{ await cloud.sb.auth.signOut(); }
+  catch(e){ onCloudSignOut(); }
+}
+
+/* ── 登录成功后处理 ── */
+async function onCloudSignIn(session){
+  cloud.session = session;
+  closeAuthModal();
+  renderSyncIndicator('syncing');
+  renderCloudUI();
+  try{
+    await ensureWorkspace();
+    await pullFromCloud();
+    await setupRealtime();
+    if(cloud._pendingInvite){
+      await redeemInvite(cloud._pendingInvite);
+      cloud._pendingInvite = null;
+    }
+    renderSyncIndicator('synced');
+  } catch(e){
+    console.error('[cloud] post-signin error:', e);
+    renderSyncIndicator('error');
+  }
+  renderCloudUI();
+}
+
+/* ── 退出登录后清理 ── */
+function onCloudSignOut(){
+  cloud.session = null;
+  cloud.workspaceId = null;
+  cloud.members = [];
+  if(cloud.channel && cloud.sb){ cloud.sb.removeChannel(cloud.channel); cloud.channel = null; }
+  renderCloudUI();
+  renderSyncIndicator('idle');
+}
+
+/* ── 确保个人工作区存在 ── */
+async function ensureWorkspace(){
+  const uid = cloud.session.user.id;
+  const { data: memberships, error } = await cloud.sb.from('workspace_members')
+    .select('workspace_id, role')
+    .eq('user_id', uid)
+    .order('joined_at', { ascending: true })
+    .limit(1);
+  if(error) throw error;
+  if(memberships && memberships.length){
+    cloud.workspaceId = memberships[0].workspace_id;
+  } else {
+    // 触发器没跑到时手动建工作区
+    const meta = cloud.session.user.user_metadata || {};
+    const displayName = meta.full_name || meta.name || cloud.session.user.email?.split('@')[0] || '我';
+    const { data: ws, error: wsErr } = await cloud.sb.from('workspaces')
+      .insert({ name: displayName + ' 的工作区', owner_id: uid })
+      .select().single();
+    if(wsErr) throw wsErr;
+    cloud.workspaceId = ws.id;
+    await cloud.sb.from('workspace_members').insert({ workspace_id: ws.id, user_id: uid, role: 'owner' });
+  }
+  const { data: members } = await cloud.sb.from('workspace_members')
+    .select('user_id, role, joined_at').eq('workspace_id', cloud.workspaceId);
+  cloud.members = members || [];
+}
+
+/* ── 从云端拉取全量数据覆盖本地 state ── */
+async function pullFromCloud(){
+  if(!cloud.sb || !cloud.workspaceId) return;
+  try{
+    const { data: projects, error: pErr } = await cloud.sb.from('projects')
+      .select('id, name, template, sort_order, created_at, updated_at')
+      .eq('workspace_id', cloud.workspaceId)
+      .order('sort_order');
+    if(pErr) throw pErr;
+    if(!projects || !projects.length){
+      // 云端空 → 首次登录, 迁移本地数据
+      await migrateIfNeeded();
+      return;
+    }
+    const { data: nodes, error: nErr } = await cloud.sb.from('nodes')
+      .select('id, project_id, parent_id, name, director, subtitle, sort_order, meta, created_at, updated_at')
+      .in('project_id', projects.map(p=>p.id))
+      .order('sort_order');
+    if(nErr) throw nErr;
+    // 按项目分组节点
+    const byProj = {};
+    (nodes||[]).forEach(n=>{
+      if(!byProj[n.project_id]) byProj[n.project_id] = [];
+      byProj[n.project_id].push({
+        id: n.id, parent_id: n.parent_id||null,
+        name: n.name||'', director: n.director||null,
+        subtitle: n.subtitle||null, sort_order: n.sort_order||0,
+        meta: n.meta||{}, created_at: n.created_at, updated_at: n.updated_at,
+      });
+    });
+    state.projects = projects.map(p=>({
+      id: p.id, workspace_id: cloud.workspaceId,
+      name: p.name, template: p.template||'default',
+      sort_order: p.sort_order||0,
+      created_at: p.created_at, updated_at: p.updated_at,
+      nodes: byProj[p.id] || [],
+    }));
+    if(!state.currentId || !state.projects.find(p=>p.id===state.currentId)){
+      state.currentId = state.projects[0]?.id || null;
+    }
+    saveToLocalOnly();
+    render();
+  } catch(e){
+    console.error('[cloud] pull error:', e);
+    renderSyncIndicator('error');
+  }
+}
+
+/* ── 首次登录: 把已有本地数据迁移到云端 ── */
+async function migrateIfNeeded(){
+  if(!cloud.sb || !cloud.workspaceId || !state.projects.length) return;
+  state.projects.forEach(p=>{ p.workspace_id = cloud.workspaceId; });
+  await pushToCloud();
+  toast(t('migrated_toast'));
+}
+
+/* ── 把本地 state 全量推送到 Supabase ── */
+async function pushToCloud(){
+  if(!cloud.sb || !cloud.workspaceId || !cloud.session) return;
+  renderSyncIndicator('syncing');
+  try{
+    const uid = cloud.session.user.id;
+    const ts = now();
+    // Upsert 项目
+    const projRows = state.projects.map((p,i)=>({
+      id: p.id, workspace_id: cloud.workspaceId,
+      name: p.name, template: p.template||'default',
+      sort_order: i, updated_at: ts,
+    }));
+    const { error: pErr } = await cloud.sb.from('projects').upsert(projRows, { onConflict:'id' });
+    if(pErr) throw pErr;
+    // Upsert 节点
+    const nodeRows = state.projects.flatMap(p=>
+      p.nodes.map((n,i)=>({
+        id: n.id, project_id: p.id, parent_id: n.parent_id||null,
+        name: n.name||'', director: n.director||null,
+        subtitle: n.subtitle||null, sort_order: i,
+        meta: n.meta||{}, updated_at: ts, updated_by: uid,
+      }))
+    );
+    if(nodeRows.length){
+      const { error: nErr } = await cloud.sb.from('nodes').upsert(nodeRows, { onConflict:'id' });
+      if(nErr) throw nErr;
+    }
+    renderSyncIndicator('synced');
+  } catch(e){
+    console.error('[cloud] push error:', e);
+    renderSyncIndicator('error');
+  }
+}
+
+/* ── 防抖推送 (saveToStorage 调用) ── */
+function schedulePush(){
+  if(!cloudEnabled() || !cloud.session) return;
+  clearTimeout(cloud.pushTimer);
+  cloud.pushTimer = setTimeout(()=> pushToCloud(), 800);
+}
+
+/* ── Realtime 订阅: 有协作者改动时拉最新 ── */
+async function setupRealtime(){
+  if(!cloud.sb || !cloud.workspaceId) return;
+  if(cloud.channel){ cloud.sb.removeChannel(cloud.channel); cloud.channel = null; }
+  const onRemoteChange = ()=>{
+    clearTimeout(cloud._rtTimer);
+    cloud._rtTimer = setTimeout(()=> pullFromCloud(), 300);
+  };
+  cloud.channel = cloud.sb.channel('ws-' + cloud.workspaceId)
+    .on('postgres_changes', { event:'*', schema:'public', table:'nodes' }, onRemoteChange)
+    .on('postgres_changes', { event:'*', schema:'public', table:'projects' }, onRemoteChange)
+    .subscribe();
+}
+
+/* ── 生成邀请链接 ── */
+async function createInvite(){
+  if(!cloud.sb || !cloud.workspaceId) return;
+  const inp = document.getElementById('inviteLinkInput');
+  inp.value = t('syncing');
+  try{
+    const { data, error } = await cloud.sb.from('invite_tokens')
+      .insert({ workspace_id: cloud.workspaceId, created_by: cloud.session.user.id })
+      .select().single();
+    if(error) throw error;
+    const base = location.href.split('?')[0].split('#')[0];
+    inp.value = base + '?invite=' + data.token;
+  } catch(e){
+    console.error('[cloud] createInvite error:', e);
+    inp.value = '';
+    toast(t('sync_error'));
+  }
+}
+
+/* ── 用邀请 token 加入工作区 ── */
+async function redeemInvite(token){
+  if(!cloud.sb || !cloud.session) return;
+  try{
+    const { data: tk, error: tkErr } = await cloud.sb.from('invite_tokens')
+      .select('workspace_id, role, used_by, expires_at')
+      .eq('token', token).single();
+    if(tkErr || !tk){ toast(t('invite_invalid')); return; }
+    if(tk.used_by){ toast(t('invite_used')); return; }
+    if(new Date(tk.expires_at) < new Date()){ toast(t('invite_expired')); return; }
+    await cloud.sb.from('invite_tokens')
+      .update({ used_by: cloud.session.user.id, used_at: now() }).eq('token', token);
+    await cloud.sb.from('workspace_members').upsert({
+      workspace_id: tk.workspace_id,
+      user_id: cloud.session.user.id,
+      role: tk.role,
+    }, { onConflict: 'workspace_id,user_id' });
+    cloud.workspaceId = tk.workspace_id;
+    toast(t('invite_joined'));
+    // 清除 URL 中的 invite 参数
+    const url = new URL(location.href);
+    url.searchParams.delete('invite');
+    history.replaceState(null, '', url.toString());
+    await pullFromCloud();
+    await setupRealtime();
+  } catch(e){
+    console.error('[cloud] redeemInvite error:', e);
+    toast(t('invite_invalid'));
+  }
+}
+
+/* ── 更新云端 UI 状态 ── */
+function renderCloudUI(){
+  const enabled = cloudEnabled();
+  ['cloudSep','syncDot'].forEach(id=>{ document.getElementById(id).style.display = enabled ? '' : 'none'; });
+  document.getElementById('inviteBtn').style.display = (enabled && cloud.session) ? '' : 'none';
+  const cloudBtn = document.getElementById('cloudBtn');
+  cloudBtn.style.display = enabled ? '' : 'none';
+  if(!enabled) return;
+  if(cloud.session){
+    const meta = cloud.session.user.user_metadata || {};
+    const name = meta.full_name || meta.name || cloud.session.user.email?.split('@')[0] || '我';
+    const av = meta.avatar_url || '';
+    cloudBtn.classList.add('signed-in');
+    cloudBtn.innerHTML = av
+      ? `<img src="${av}" style="width:22px;height:22px;border-radius:50%;object-fit:cover;" alt="">`
+      : `<span style="font-size:11px;font-weight:600;">${name.slice(0,2)}</span>`;
+    cloudBtn.title = name + ' · ' + t('click_signout');
+  } else {
+    cloudBtn.classList.remove('signed-in');
+    cloudBtn.textContent = t('sign_in');
+    cloudBtn.title = '';
+  }
+}
+
+/* ── 同步指示器 (topbar 小圆点) ── */
+function renderSyncIndicator(s){
+  const dot = document.getElementById('syncDot');
+  dot.className = 'sync-dot';
+  if(s==='syncing'){ dot.classList.add('syncing'); dot.title = t('syncing'); dot.style.display=''; }
+  else if(s==='synced'){ dot.classList.add('synced'); dot.title = t('synced'); dot.style.display=''; }
+  else if(s==='error'){ dot.classList.add('error'); dot.title = t('sync_error'); dot.style.display=''; }
+  else { dot.style.display = cloudEnabled() ? '' : 'none'; }
+}
+
+/* ── 渲染邀请弹窗成员列表 ── */
+async function renderMemberList(){
+  const list = document.getElementById('memberList');
+  if(!list || !cloud.sb || !cloud.workspaceId) return;
+  const { data } = await cloud.sb.from('workspace_members')
+    .select('user_id, role, joined_at').eq('workspace_id', cloud.workspaceId);
+  cloud.members = data || [];
+  const myId = cloud.session?.user.id;
+  list.innerHTML = cloud.members.map(m=>{
+    const isMe = m.user_id === myId;
+    const meta = isMe ? (cloud.session.user.user_metadata||{}) : {};
+    const name = isMe
+      ? (meta.full_name || meta.name || cloud.session.user.email?.split('@')[0] || 'me')
+      : m.user_id.slice(0,8)+'…';
+    const av = isMe ? (meta.avatar_url||'') : '';
+    return `<div class="member-row">
+      <div class="member-avatar">${av ? `<img src="${av}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;">` : name.slice(0,1).toUpperCase()}</div>
+      <div style="flex:1;min-width:0">
+        <div class="member-name" style="font-size:13px;font-weight:500;color:var(--text)">${name}${isMe?' ('+t('by')+'me)':''}</div>
+        <div class="member-role" style="font-size:11px;color:var(--muted)">${m.role}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ── 打开/关闭邀请弹窗 ── */
+async function openInviteModal(){
+  document.getElementById('inviteModal').classList.add('open');
+  await createInvite();
+  await renderMemberList();
+}
+function closeInviteModal(){
+  document.getElementById('inviteModal').classList.remove('open');
+}
+
 /* ---------------- 事件绑定 ---------------- */
 document.getElementById('tree').addEventListener('click', e=>{
   const act = e.target.closest('[data-act]');
@@ -1100,13 +1649,36 @@ document.getElementById('projModal').addEventListener('click', e=>{ if(e.target.
 document.getElementById('pName').addEventListener('keydown', e=>{ if(e.key==='Enter') saveProjModal(); });
 document.querySelectorAll('#langSw span').forEach(s=>{ s.onclick = ()=>setLang(s.dataset.lang); });
 document.addEventListener('keydown', e=>{
-  if(e.key==='Escape'){ closeNodeModal(); closeProjModal(); }
+  if(e.key==='Escape'){ closeNodeModal(); closeProjModal(); closeAuthModal(); closeInviteModal(); }
 });
+
+/* v0.3: 云端按钮事件 */
+document.getElementById('cloudBtn').onclick = ()=>{
+  if(!cloud.session){ openAuthModal(); }
+  else { if(confirm(t('click_signout')+'?')) cloudSignOut(); }
+};
+document.getElementById('authGoogleBtn').onclick = ()=> cloudSignIn();
+document.getElementById('authOfflineLink').onclick = ()=> closeAuthModal();
+document.getElementById('authModal').addEventListener('click', e=>{ if(e.target.id==='authModal') closeAuthModal(); });
+document.getElementById('inviteBtn').onclick = ()=> openInviteModal();
+document.getElementById('inviteCopyBtn').onclick = ()=>{
+  const val = document.getElementById('inviteLinkInput').value;
+  if(!val) return;
+  navigator.clipboard.writeText(val).then(()=> toast(t('copy')+'!')).catch(()=>{
+    document.getElementById('inviteLinkInput').select();
+    document.execCommand('copy');
+    toast(t('copy')+'!');
+  });
+};
+document.getElementById('inviteClose').onclick = ()=> closeInviteModal();
+document.getElementById('inviteModal').addEventListener('click', e=>{ if(e.target.id==='inviteModal') closeInviteModal(); });
 
 /* ---------------- 启动 ---------------- */
 applyI18n();
 loadFromStorage();
 render();
+// v0.3: 异步初始化云端 (不阻塞本地 UI)
+cloudInit();
 </script>
 </body>
 </html>

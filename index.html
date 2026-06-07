@@ -496,15 +496,26 @@
   .auth-logo{ font-size:40px; margin-bottom:12px; }
   .auth-title{ font-size:20px; font-weight:600; margin-bottom:6px; }
   .auth-sub{ font-size:13px; color:var(--muted); margin-bottom:24px; line-height:1.5; }
-  .auth-google-btn{
-    display:flex; align-items:center; justify-content:center; gap:10px;
-    width:100%; padding:12px 16px;
+  .auth-email-input{
+    width:100%; padding:11px 14px; box-sizing:border-box;
     background:var(--input-bg); border:1.5px solid var(--line);
-    border-radius:12px; font-size:14px; font-weight:500;
-    color:var(--text); cursor:default;
-    transition:border-color .12s, box-shadow .12s;
+    border-radius:12px; font-size:14px; color:var(--text);
+    transition:border-color .12s, box-shadow .12s; outline:none;
+    margin-bottom:10px;
   }
-  .auth-google-btn:hover{ border-color:var(--accent); box-shadow:0 0 0 3px rgba(0,113,227,.12); }
+  .auth-email-input:focus{ border-color:var(--accent); box-shadow:0 0 0 3px rgba(0,113,227,.12); }
+  .auth-email-btn{
+    display:block; width:100%; padding:12px 16px;
+    background:var(--accent); border:none;
+    border-radius:12px; font-size:14px; font-weight:600;
+    color:#fff; cursor:default;
+    transition:opacity .12s;
+  }
+  .auth-email-btn:hover{ opacity:.9; }
+  .auth-email-btn:disabled{ opacity:.45; cursor:default; }
+  .auth-email-sent{
+    margin-top:12px; font-size:13px; color:#2f9e44; display:none;
+  }
   .auth-offline-link{
     display:block; margin-top:14px;
     font-size:12px; color:var(--muted); cursor:default;
@@ -629,15 +640,11 @@
         <div class="auth-logo">🌳</div>
         <div class="auth-title" data-i18n="auth_title">登录项目树</div>
         <div class="auth-sub" data-i18n="auth_sub">登录后数据自动备份至云端，可邀请团队成员共同编辑</div>
-        <button class="auth-google-btn" id="authGoogleBtn">
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-            <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
-            <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
-            <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
-            <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
-          </svg>
-          <span data-i18n="auth_google">使用 Google 账号登录</span>
-        </button>
+        <input class="auth-email-input" id="authEmailInput" type="email"
+          data-i18n-ph="auth_email_ph" placeholder="your@email.com"
+          autocomplete="email">
+        <button class="auth-email-btn" id="authEmailBtn" data-i18n="auth_send_link">发送登录链接</button>
+        <div class="auth-email-sent" id="authEmailSent" data-i18n="auth_email_sent">✅ 已发送！请检查您的邮箱</div>
         <span class="auth-offline-link" id="authOfflineLink" data-i18n="auth_offline">继续使用本地版（数据不同步）</span>
       </div>
     </div>
@@ -714,7 +721,9 @@ const I18N = {
     tmpl_wbs:"项目分解", tmpl_customer:"客户管道", tmpl_content:"内容日历",
     /* v0.3 云端协作 */
     auth_title:"登录项目树", auth_sub:"登录后数据自动备份至云端，可邀请团队成员共同编辑",
-    auth_google:"使用 Google 账号登录", auth_offline:"继续使用本地版（数据不同步）",
+    auth_email_ph:"your@email.com", auth_send_link:"发送登录链接",
+    auth_email_sent:"✅ 已发送！请检查您的邮箱",
+    auth_offline:"继续使用本地版（数据不同步）",
     invite_title:"邀请成员", invite_hint:"分享以下链接，对方点击后即可加入你的工作区",
     invite_expire:"链接 7 天内有效，仅限一次使用",
     invite_member:"邀请成员", copy:"复制", close:"关闭",
@@ -759,7 +768,9 @@ const I18N = {
     tmpl_wbs:"WBS", tmpl_customer:"顧客パイプ", tmpl_content:"コンテンツカレンダー",
     /* v0.3 */
     auth_title:"プロジェクトツリーにログイン", auth_sub:"ログインするとデータが自動でクラウドに保存され、チームメンバーを招待できます",
-    auth_google:"Google アカウントでログイン", auth_offline:"ローカル版を続けて使う（同期なし）",
+    auth_email_ph:"your@email.com", auth_send_link:"ログインリンクを送信",
+    auth_email_sent:"✅ 送信しました。メールをご確認ください",
+    auth_offline:"ローカル版を続けて使う（同期なし）",
     invite_title:"メンバーを招待", invite_hint:"以下のリンクを共有すると、クリックするだけでワークスペースに参加できます",
     invite_expire:"リンクは7日間有効・1回限り使用可",
     invite_member:"メンバー招待", copy:"コピー", close:"閉じる",
@@ -804,7 +815,9 @@ const I18N = {
     tmpl_wbs:"WBS", tmpl_customer:"Customer Pipeline", tmpl_content:"Content Calendar",
     /* v0.3 */
     auth_title:"Sign in to Project Tree", auth_sub:"Sign in to back up your data to the cloud and invite teammates to collaborate",
-    auth_google:"Sign in with Google", auth_offline:"Continue offline (no sync)",
+    auth_email_ph:"your@email.com", auth_send_link:"Send login link",
+    auth_email_sent:"✅ Sent! Check your inbox.",
+    auth_offline:"Continue offline (no sync)",
     invite_title:"Invite members", invite_hint:"Share this link — anyone who clicks it will join your workspace",
     invite_expire:"Link valid for 7 days, single use",
     invite_member:"Invite members", copy:"Copy", close:"Close",
@@ -1219,8 +1232,8 @@ function toast(msg){
    ================================================================ */
 
 const SUPABASE_CONFIG = {
-  url: '',   // e.g. 'https://xxxxxxxxxxxx.supabase.co'
-  key: '',   // Supabase anon/public key (非 secret key!)
+  url: 'https://rrkzeiievvcphlpfdoco.supabase.co',
+  key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJya3plaWlldnZjcGhscGZkb2NvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTgxNTUsImV4cCI6MjA5NjM5NDE1NX0.QTxHR1ZNoRQztXoFt1KJDRLBRnFCefDWsOi_TBddGDs',
 };
 
 /* ── 云端运行时状态 ── */
@@ -1286,21 +1299,33 @@ function openAuthModal(pendingInvite){
 }
 function closeAuthModal(){
   document.getElementById('authModal').classList.remove('open');
+  // 重置表单
+  const inp = document.getElementById('authEmailInput');
+  const btn = document.getElementById('authEmailBtn');
+  const sent = document.getElementById('authEmailSent');
+  if(inp) inp.value = '';
+  if(btn) btn.disabled = false;
+  if(sent) sent.style.display = 'none';
 }
 
-/* ── Google OAuth 登录 (OAuth redirect, 不需要弹窗) ── */
-async function cloudSignIn(){
-  if(!cloud.sb) return;
+/* ── Email Magic Link 登录 ── */
+async function cloudSignIn(email){
+  if(!cloud.sb || !email) return;
+  const btn = document.getElementById('authEmailBtn');
+  if(btn) btn.disabled = true;
   try{
     const redirectTo = location.href.split('?')[0].split('#')[0];
-    const { error } = await cloud.sb.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo }
+    const { error } = await cloud.sb.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: redirectTo, shouldCreateUser: true }
     });
     if(error) throw error;
+    const sentEl = document.getElementById('authEmailSent');
+    if(sentEl) sentEl.style.display = 'block';
   } catch(e){
     console.error('[cloud] signIn error:', e);
     toast(t('sync_error'));
+    if(btn) btn.disabled = false;
   }
 }
 
@@ -1657,7 +1682,16 @@ document.getElementById('cloudBtn').onclick = ()=>{
   if(!cloud.session){ openAuthModal(); }
   else { if(confirm(t('click_signout')+'?')) cloudSignOut(); }
 };
-document.getElementById('authGoogleBtn').onclick = ()=> cloudSignIn();
+document.getElementById('authEmailBtn').onclick = ()=>{
+  const email = document.getElementById('authEmailInput').value.trim();
+  if(email) cloudSignIn(email);
+};
+document.getElementById('authEmailInput').addEventListener('keydown', e=>{
+  if(e.key==='Enter'){
+    const email = e.target.value.trim();
+    if(email) cloudSignIn(email);
+  }
+});
 document.getElementById('authOfflineLink').onclick = ()=> closeAuthModal();
 document.getElementById('authModal').addEventListener('click', e=>{ if(e.target.id==='authModal') closeAuthModal(); });
 document.getElementById('inviteBtn').onclick = ()=> openInviteModal();

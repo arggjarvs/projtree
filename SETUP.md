@@ -21,16 +21,13 @@
 
 ---
 
-## 第 3 步：开启 Google OAuth
+## 第 3 步：（已完成）邮件认证默认开启，无需额外配置
 
-1. Supabase 控制台 → **Authentication → Providers → Google** → 开启
-2. 打开 [Google Cloud Console](https://console.cloud.google.com/)
-   - 创建项目 / 选择已有项目
-   - 左侧 **APIs & Services → Credentials → Create Credentials → OAuth client ID**
-   - 应用类型选 **Web application**
-   - Authorized JavaScript origins：填你的域名（本地测试填 `http://localhost:8742`）
-   - Authorized redirect URIs：填 Supabase 提供的回调地址（格式：`https://xxxx.supabase.co/auth/v1/callback`）
-3. 把 Google 生成的 **Client ID** 和 **Client Secret** 填回 Supabase Google Provider 页面 → 保存
+Supabase 默认启用 Email 认证，Magic Link 开箱即用，无需任何 OAuth 配置。
+
+- **Site URL** 已通过 API 配置为 `https://arggjarvs.github.io/projtree/`
+- **允许的重定向 URL** 已包含本地测试地址 `http://localhost:8742`
+- 用户点击登录 → 输入邮箱 → 收到 Magic Link 邮件 → 点击链接完成登录，全程无需 Google 账号
 
 ---
 
@@ -56,8 +53,8 @@ const SUPABASE_CONFIG = {
 
 1. 用 `python3 -m http.server 8742` 启动本地服务（或部署到 GitHub Pages）
 2. 打开 `http://localhost:8742`，topbar 右侧应出现 **登录** 按钮
-3. 点击 → Google 授权 → 登录成功后按钮变成你的头像
-4. 点击 **邀请成员** → 复制链接 → 用另一个浏览器打开链接 → 用不同 Google 账号登录 → 成功加入工作区
+3. 点击 → 输入邮箱 → 查收 Magic Link 邮件 → 点击链接完成登录 → 按钮变成已登录状态
+4. 点击 **邀请成员** → 复制链接 → 用另一个浏览器打开链接 → 用不同邮箱登录 → 成功加入工作区
 5. 两个浏览器同时编辑，变更会在约 300ms 内实时同步
 
 ---

@@ -21,7 +21,7 @@
 *   **节点批注**（v0.2）：每个节点可添加多行批注，直接展示在卡片内容区下方，补充上下文与备忘信息。
 *   **Apple 设计美学**：界面遵循 Apple 设计规范，支持浅色/深色自动切换，采用 Liquid Glass 效果、Squircle 大圆角及 SF 字体。
 *   **多语言支持**：内置中文、日文、英文三种语言包，可无缝切换界面语言，适应国际化团队。
-*   **云端协作**（v0.3）：Google 账号一键登录，自动创建个人工作区，生成 7 天有效邀请链接，成员实时同步（~300ms），Local-first 架构断网全功能可用。
+*   **云端协作**（v0.3）：邮箱 Magic Link 登录（无需 Google 账号），自动创建个人工作区，生成 7 天有效邀请链接，成员实时同步（~300ms），Local-first 架构断网全功能可用。
 *   **数据持久化**：localStorage 主写入（零延迟），Supabase 后台异步同步（800ms 防抖），支持 JSON 格式导入导出。
 *   **嵌入友好**：支持 iframe 紧凑布局模式（?embed 参数），预留飞书、钉钉、WPS 等企业 IM 集成接口。
 
@@ -38,7 +38,7 @@ claude plugin install projtree@arggjarvs-projtree-marketplace
 
 *   ✅ **v0.1**：单 HTML MVP，五字段节点，Apple 设计，三语言，localStorage，JSON 导入导出。
 *   ✅ **v0.2**：字段模板系统（六种场景）· 节点批注 · 规范基线随 JSON 携带。
-*   ✅ **v0.3**：接入 Supabase 实现云协作，支持 Google 登录、个人工作区、邀请链接、实时多人同步（~300ms）、Local-first 离线全功能。
+*   ✅ **v0.3**：接入 Supabase 实现云协作，支持邮箱 Magic Link 登录（无需 Google 账号）、个人工作区、邀请链接、实时多人同步（~300ms）、Local-first 离线全功能。
 *   **v1.0**：完成飞书、钉钉、WPS 三家 IM 平台嵌入上架，启动商业化定价策略。
 
 ## 应用场景

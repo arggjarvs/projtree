@@ -21,7 +21,7 @@ Or just download `index.html` and double-click. Data lives in your browser (loca
 - **Five-field nodes** — name / lead / description / people / status (staffed / partial / gap)
 - **Field-template system** — 6 built-in templates (General · Org Chart · OKR · WBS · Customer Pipeline · Content Calendar) — field labels and status names adapt to the use case; template travels with JSON export as a shared baseline
 - **Node annotations** — multi-line notes per node, rendered inline below the description
-- **Cloud collaboration** (v0.3) — Google sign-in via Supabase, personal workspace auto-created on first login, invite members via 7-day link, realtime multi-user sync (~300ms), local-first (works offline, syncs in background)
+- **Cloud collaboration** (v0.3) — Email magic link sign-in via Supabase (no Google account required), personal workspace auto-created on first login, invite members via 7-day link, realtime multi-user sync (~300ms), local-first (works offline, syncs in background)
 - **Apple aesthetics** — light + auto dark, Liquid Glass topbar, 18px squircle, SF font stack, tabular-nums
 - **i18n** — Chinese / Japanese / English, switch on the fly (`?lang=` URL param supported)
 - **Persistent** — localStorage primary, Supabase cloud secondary (800ms debounce)
@@ -41,7 +41,7 @@ Then in any Claude Code / Claude Cowork session just say "build me an OKR tree" 
 
 - ✅ **v0.1** — single-HTML MVP, five-field nodes, Apple UI, i18n, localStorage, JSON import/export
 - ✅ **v0.2** — field-template system (6 templates) · node annotations · baseline specs in JSON export
-- ✅ **v0.3** — Supabase cloud collaboration: Google login, workspace, invite link, realtime multi-user sync, local-first offline
+- ✅ **v0.3** — Supabase cloud collaboration: email magic link login (no Google account required), workspace, invite link, realtime multi-user sync, local-first offline
 - **v1.0** — Feishu / DingTalk / WPS embedded apps, marketplace listings, pricing rollout
 
 ## Use cases
@@ -52,7 +52,7 @@ OKR breakdown · Org charts · Product requirement trees (WBS) · Knowledge mana
 
 > Cloud features are **opt-in**. When `SUPABASE_CONFIG.url` is empty the app runs 100% offline — the Supabase SDK never loads.
 
-See **[SETUP.md](./SETUP.md)** for the 5-step Supabase + Google OAuth configuration guide.
+See **[SETUP.md](./SETUP.md)** for the Supabase configuration guide.
 
 ## Tech stack
 

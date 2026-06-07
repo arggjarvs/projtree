@@ -575,7 +575,8 @@ const I18N = {
 let lang = (function(){
   const u=new URLSearchParams(location.search).get('lang');
   if(u && I18N[u]) return u;
-  return localStorage.getItem('projtree-lang') || (navigator.language||'').toLowerCase().startsWith('ja')?'ja':((navigator.language||'').toLowerCase().startsWith('en')?'en':'zh');
+  const stored = localStorage.getItem('projtree-lang'); if(stored && I18N[stored]) return stored;
+  const nav=(navigator.language||'').toLowerCase(); return nav.startsWith('ja')?'ja':nav.startsWith('en')?'en':'zh';
 })();
 function t(k,p){ let s=(I18N[lang]&&I18N[lang][k]); if(s==null) s=I18N.zh[k]; if(s==null) s=k; if(p) for(const x in p) s=String(s).split('{'+x+'}').join(p[x]); return s; }
 function applyI18n(){

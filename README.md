@@ -17,11 +17,15 @@ Or just download `index.html` and double-click. Data lives in your browser (loca
 ## Features (v0.3)
 
 - **Editable recursive tree** — unlimited depth, full CRUD
+- **Undo / redo** — 60-step history, `⌘Z` / `⌘⇧Z`, toolbar buttons (collab-safe: cleared on remote sync)
+- **Global search** — `/` or `⌘K`, live filter with match highlight, keeps the ancestor path visible
+- **Keyboard-first & accessible** — full WAI-ARIA tree navigation (↑↓ move, ←→ collapse/expand, Enter edit, Delete remove), roving tabindex, focus ring, screen-reader labels; shortcuts panel via `?`
 - **Multi-project** — start from scratch or import JSON
 - **Five-field nodes** — name / lead / description / people / status (staffed / partial / gap)
-- **Field-template system** — 6 built-in templates (General · Org Chart · OKR · WBS · Customer Pipeline · Content Calendar) — field labels and status names adapt to the use case; template travels with JSON export as a shared baseline
+- **Field-template system** — 12 built-in templates (General · Org Chart · OKR · WBS · Customer Pipeline · Content Calendar · Hiring · Roadmap · Risk Register · Event · GTD · Strategy Map) — field labels and status names adapt to the use case; template travels with JSON export as a shared baseline
 - **Node annotations** — multi-line notes per node, rendered inline below the description
-- **Cloud collaboration** (v0.3) — Email magic link sign-in via Supabase (no Google account required), personal workspace auto-created on first login, invite members via 7-day link, realtime multi-user sync (~300ms), local-first (works offline, syncs in background)
+- **Stats bar** — live node count + status breakdown, follows the active search
+- **Cloud collaboration** — Email magic link sign-in via Supabase (no Google account required), personal workspace auto-created on first login, invite members via 7-day link, realtime multi-user sync (~300ms), local-first (works offline). **Incremental diff sync**: only changed rows are pushed and deletes propagate, so a collaborator's concurrent edits to other nodes are never clobbered
 - **Apple aesthetics** — light + auto dark, Liquid Glass topbar, 18px squircle, SF font stack, tabular-nums
 - **i18n** — Chinese / Japanese / English, switch on the fly (`?lang=` URL param supported)
 - **Persistent** — localStorage primary, Supabase cloud secondary (800ms debounce)

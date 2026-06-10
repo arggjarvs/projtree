@@ -48,8 +48,11 @@ CREATE TABLE IF NOT EXISTS public.nodes (
   meta        jsonb       NOT NULL DEFAULT '{}',
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now(),
-  updated_by  uuid        REFERENCES auth.users(id)
+  updated_by  uuid        REFERENCES auth.users(id),
+  rev         integer     NOT NULL DEFAULT 0   -- v0.3: 乐观锁版本号 (任务 1-b 同节点冲突检测预留)
 );
+-- 【已建过表的迁移】若 nodes 表已存在且没有 rev 列，单独执行一次：
+--   ALTER TABLE public.nodes ADD COLUMN IF NOT EXISTS rev integer NOT NULL DEFAULT 0;
 
 -- 邀请令牌（7 天有效，单次使用）
 CREATE TABLE IF NOT EXISTS public.invite_tokens (

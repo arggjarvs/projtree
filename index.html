@@ -638,6 +638,9 @@
     <button class="tb-btn" id="renameProj" data-i18n="rename_proj">✏️ 改名</button>
     <button class="tb-btn danger" id="delProj" data-i18n="del_proj">🗑 删项目</button>
     <div class="tb-sep"></div>
+    <button class="tb-btn" id="undoBtn" disabled>↶</button>
+    <button class="tb-btn" id="redoBtn" disabled>↷</button>
+    <div class="tb-sep"></div>
     <button class="tb-btn" id="expandAll" data-i18n="expand_all">全展开</button>
     <button class="tb-btn" id="collapseAll" data-i18n="collapse_all">全收起</button>
     <div class="top-sp"></div>
@@ -764,6 +767,8 @@
       <div class="kbd-row"><span data-i18n="sc_add_root">添加根节点</span><span><kbd>N</kbd></span></div>
       <div class="kbd-row"><span data-i18n="sc_expand">展开全部</span><span><kbd>E</kbd></span></div>
       <div class="kbd-row"><span data-i18n="sc_collapse">折叠全部</span><span><kbd>C</kbd></span></div>
+      <div class="kbd-row"><span data-i18n="sc_undo">撤销</span><span><kbd>⌘Z</kbd></span></div>
+      <div class="kbd-row"><span data-i18n="sc_redo">重做</span><span><kbd>⌘⇧Z</kbd></span></div>
       <div class="kbd-row"><span data-i18n="sc_esc">关闭 / 清除搜索</span><span><kbd>Esc</kbd></span></div>
       <div class="kbd-row"><span data-i18n="sc_help">显示此面板</span><span><kbd>?</kbd></span></div>
       <div class="modal-btns">
@@ -845,6 +850,7 @@ const I18N = {
     sc_expand:"展开全部", sc_collapse:"折叠全部",
     sc_esc:"关闭 / 清除搜索", sc_help:"显示此面板",
     stats_total:"共", stats_nodes:"个节点", no_results:"无结果",
+    undo_done:"已撤销", redo_done:"已重做", undo_empty:"没有可撤销的操作", redo_empty:"没有可重做的操作", sc_undo:"撤销", sc_redo:"重做", undo_title:"撤销 ⌘Z", redo_title:"重做 ⌘⇧Z",
   },
   ja:{
     app_name:"プロジェクトツリー",
@@ -899,6 +905,7 @@ const I18N = {
     sc_expand:"すべて展開", sc_collapse:"すべて折りたたむ",
     sc_esc:"閉じる / 検索クリア", sc_help:"このパネルを表示",
     stats_total:"計", stats_nodes:"件", no_results:"結果なし",
+    undo_done:"元に戻しました", redo_done:"やり直しました", undo_empty:"元に戻す操作がありません", redo_empty:"やり直す操作がありません", sc_undo:"元に戻す", sc_redo:"やり直し", undo_title:"元に戻す ⌘Z", redo_title:"やり直し ⌘⇧Z",
   },
   en:{
     app_name:"Project Tree",
@@ -953,6 +960,7 @@ const I18N = {
     sc_expand:"Expand all", sc_collapse:"Collapse all",
     sc_esc:"Close / clear search", sc_help:"Show this panel",
     stats_total:"", stats_nodes:"nodes", no_results:"No results",
+    undo_done:"Undone", redo_done:"Redone", undo_empty:"Nothing to undo", redo_empty:"Nothing to redo", sc_undo:"Undo", sc_redo:"Redo", undo_title:"Undo ⌘Z", redo_title:"Redo ⌘⇧Z",
   },
 };
 let lang = (function(){
@@ -969,6 +977,7 @@ function applyI18n(){
   document.title = t('app_name');
   document.querySelectorAll('#langSw span').forEach(s=>s.classList.toggle('on', s.dataset.lang===lang));
   buildTmplPicker();
+  updateUndoButtons();
 }
 function setLang(l){ if(!I18N[l]) return; lang=l; localStorage.setItem('projtree-lang',l); applyI18n(); render(); }
 
@@ -1288,6 +1297,46 @@ function renderStats(nodes, matchIds){
   bar.classList.add('vis');
 }
 
+/* ---------------- 撤销 / 重做 ----------------
+   全状态快照栈：每次数据 mutation 前 pushUndo() 抓一张快照。
+   快照 = JSON.stringify({projects, currentId})，栈深上限 60。 */
+const histState = { undo:[], redo:[], LIMIT:60 };
+function snapshotState(){ return JSON.stringify({ projects: state.projects, currentId: state.currentId }); }
+function pushUndo(){
+  histState.undo.push(snapshotState());
+  if(histState.undo.length > histState.LIMIT) histState.undo.shift();
+  histState.redo.length = 0;   // 新操作清空 redo 分支
+  updateUndoButtons();
+}
+function applySnapshot(snap){
+  const d = JSON.parse(snap);
+  state.projects = d.projects;
+  if(d.currentId && state.projects.find(p=>p.id===d.currentId)) state.currentId = d.currentId;
+  else if(!state.projects.find(p=>p.id===state.currentId)) state.currentId = state.projects[0] ? state.projects[0].id : null;
+  ui.collapseInit = false;     // 树结构可能变，重算折叠
+  saveToStorage();
+  render();
+}
+function undoAction(){
+  if(!histState.undo.length){ toast(t('undo_empty')); return; }
+  histState.redo.push(snapshotState());
+  applySnapshot(histState.undo.pop());
+  updateUndoButtons();
+  toast(t('undo_done'));
+}
+function redoAction(){
+  if(!histState.redo.length){ toast(t('redo_empty')); return; }
+  histState.undo.push(snapshotState());
+  applySnapshot(histState.redo.pop());
+  updateUndoButtons();
+  toast(t('redo_done'));
+}
+function updateUndoButtons(){
+  const u = document.getElementById('undoBtn'), r = document.getElementById('redoBtn');
+  if(u){ u.disabled = !histState.undo.length; u.title = t('undo_title'); }
+  if(r){ r.disabled = !histState.redo.length; r.title = t('redo_title'); }
+}
+
 /* ---------------- 节点 CRUD ---------------- */
 let nodeModalState = null; // {mode:'add'|'edit', id, parentId}
 function openNodeModal(mode, node, parentId){
@@ -1322,6 +1371,7 @@ function saveNodeModal(){
   const badge    = document.getElementById('fBadge').value || null;
   const notes    = document.getElementById('fNotes').value.trim() || null; /* v0.2 */
   const proj = curProj(); if(!proj){ closeNodeModal(); return; }
+  pushUndo();
   if(st.mode==='add'){
     const siblings = proj.nodes.filter(n=>(n.parent_id||null)===(st.parentId||null));
     const meta = {};
@@ -1352,6 +1402,7 @@ function delNode(id){
   const node = proj.nodes.find(n=>n.id===id);
   if(!node) return;
   if(!confirm(t('del_node_confirm',{name:node.name||t('unnamed')}))) return;
+  pushUndo();
   const ids = subtreeIds(proj.nodes, id);
   proj.nodes = proj.nodes.filter(n=>!ids.includes(n.id));
   proj.updated_at = now();
@@ -1378,6 +1429,7 @@ function saveProjModal(){
   const name = document.getElementById('pName').value.trim();
   if(!name){ document.getElementById('pName').focus(); return; }
   const template = _pickerTmpl || 'default'; /* v0.2 */
+  pushUndo();
   if(st.mode==='new'){
     const p = { id:uuid(), name, template, owner:null, created_at:now(), updated_at:now(), sort_order:state.projects.length, nodes:[] };
     state.projects.push(p);
@@ -1395,6 +1447,7 @@ function delProject(){
   const only = state.projects.length<=1;
   const msg = only ? t('del_proj_last',{name:p.name}) : t('del_proj_confirm',{name:p.name});
   if(!confirm(msg)) return;
+  pushUndo();
   state.projects = state.projects.filter(x=>x.id!==p.id);
   if(!state.projects.length){
     const np = { id:uuid(), name:t('proj_first'), template:'default', owner:null, created_at:now(), updated_at:now(), sort_order:0, nodes:[] };
@@ -1436,6 +1489,7 @@ function importJsonText(text){
   let d;
   try{ d = JSON.parse(text); }catch(_){ toast(t('import_failed')); return; }
   if(!d || d.format!=='projtree' || !Array.isArray(d.projects)){ toast(t('import_failed')); return; }
+  pushUndo();
   const map = {};
   state.projects.forEach(p=>{ map[p.id]=p; });
   d.projects.forEach(p=>{ if(p && p.id){ map[p.id] = p; } });
@@ -1672,6 +1726,8 @@ async function pullFromCloud(){
     if(!state.currentId || !state.projects.find(p=>p.id===state.currentId)){
       state.currentId = state.projects[0]?.id || null;
     }
+    // 远程改动已覆盖本地 → 旧撤销快照失效, 清空(否则撤销会回退掉协作者刚写入的改动)
+    histState.undo.length = 0; histState.redo.length = 0; updateUndoButtons();
     saveToLocalOnly();
     render();
   } catch(e){
@@ -1891,6 +1947,8 @@ document.getElementById('projSel').onchange = e=>switchProject(e.target.value);
 document.getElementById('newProj').onclick = ()=>openProjModal('new');
 document.getElementById('renameProj').onclick = ()=>openProjModal('rename');
 document.getElementById('delProj').onclick = delProject;
+document.getElementById('undoBtn').onclick = undoAction;
+document.getElementById('redoBtn').onclick = redoAction;
 document.getElementById('expandAll').onclick = ()=>{ ui.collapsed.clear(); render(); };
 document.getElementById('collapseAll').onclick = ()=>{
   const cm = childrenMap(curNodes());
@@ -1944,6 +2002,9 @@ document.addEventListener('keydown', e=>{
   if(inInput) return;
   /* 如果有弹窗打开，不触发快捷键 */
   if(document.querySelector('.modal.open')) return;
+  /* 撤销/重做：⌘Z 撤销，⌘⇧Z 或 Ctrl+Y 重做 */
+  if((e.key==='z'||e.key==='Z')&&(e.metaKey||e.ctrlKey)&&!e.shiftKey){ e.preventDefault(); undoAction(); return; }
+  if((((e.key==='z'||e.key==='Z')&&e.shiftKey)||(e.key==='y'||e.key==='Y'))&&(e.metaKey||e.ctrlKey)){ e.preventDefault(); redoAction(); return; }
   if(e.key==='/'||(e.key==='k'&&(e.metaKey||e.ctrlKey))){ e.preventDefault(); openSearch(); return; }
   if(e.key==='?'){ openShortcutsModal(); return; }
   if(e.key==='n'||e.key==='N'){ openNodeModal('add',null,null); return; }

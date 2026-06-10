@@ -23,3 +23,4 @@ build/
 # Logs / tmp
 /tmp/
 *.log
+.goal-progress.md

@@ -554,6 +554,79 @@
     background:rgba(0,0,0,.04); border-radius:6px; padding:1px 6px;
   }
   @media (prefers-color-scheme:dark){ .member-role{ background:rgba(255,255,255,.08); } }
+
+  /* ── 搜索栏 ── */
+  #searchBar{
+    position:sticky; top:var(--topbar-h); z-index:49;
+    height:44px; padding:0 18px;
+    display:none; align-items:center; gap:10px;
+    background:rgba(255,255,255,.82);
+    backdrop-filter:blur(20px) saturate(160%);
+    -webkit-backdrop-filter:blur(20px) saturate(160%);
+    box-shadow:0 1px 0 var(--line);
+  }
+  #searchBar.open{ display:flex; }
+  @media(prefers-color-scheme:dark){
+    #searchBar{ background:rgba(28,28,30,.82); }
+  }
+  .search-wrap{ position:relative; display:flex; align-items:center; }
+  .search-input{
+    width:280px; height:28px; padding:4px 24px 4px 30px;
+    background:var(--input-bg); border:none; border-radius:8px;
+    font-size:13px; color:var(--text); outline:none; font-family:inherit;
+  }
+  .search-input:focus{ box-shadow:0 0 0 3px rgba(0,113,227,.15); }
+  .search-input::placeholder{ color:var(--muted-2); }
+  .search-icon{
+    position:absolute; left:8px; width:14px; height:14px;
+    color:var(--muted); pointer-events:none;
+  }
+  .search-clear{
+    position:absolute; right:5px; width:15px; height:15px;
+    border:none; background:var(--muted-2); color:#fff;
+    border-radius:50%; font-size:10px; line-height:15px;
+    text-align:center; cursor:default; display:none; padding:0;
+  }
+  .search-clear.vis{ display:block; }
+  .search-clear:hover{ background:var(--muted); }
+  .search-count{ font-size:12px; color:var(--muted); white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .search-hint{ font-size:11px; color:var(--muted-2); margin-left:auto; }
+  .hl{ background:rgba(0,113,227,.18); border-radius:3px; font-weight:600; color:var(--accent); padding:0 1px; }
+  .node-hidden{ display:none !important; }
+
+  /* ── 底部统计条 ── */
+  #statsBar{
+    position:fixed; bottom:0; left:0; right:0; z-index:30;
+    height:32px; padding:0 20px;
+    display:none; align-items:center; gap:16px;
+    background:var(--card);
+    backdrop-filter:blur(20px) saturate(160%);
+    -webkit-backdrop-filter:blur(20px) saturate(160%);
+    box-shadow:0 -1px 0 var(--line);
+  }
+  #statsBar.vis{ display:flex; }
+  .stats-item{ font-size:11px; color:var(--muted); display:flex; align-items:center; gap:4px; }
+  .stats-num{ font-weight:600; color:var(--text); font-variant-numeric:tabular-nums; }
+  .stats-dot{ width:4px; height:4px; border-radius:50%; flex-shrink:0; }
+  .dot-green{ background:var(--green); }
+  .dot-orange{ background:var(--orange); }
+  .dot-red{ background:var(--red); }
+  .dot-gray{ background:var(--muted); }
+
+  /* ── 快捷键弹窗 ── */
+  .kbd-row{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:7px 0; border-bottom:1px solid var(--line); font-size:13px;
+  }
+  .kbd-row:last-of-type{ border-bottom:none; }
+  kbd{
+    font-family:ui-monospace,monospace; font-size:12px;
+    background:var(--bg-canvas); border:1px solid var(--line);
+    border-radius:5px; padding:2px 6px;
+    box-shadow:0 1px 2px rgba(0,0,0,.08); color:var(--text);
+  }
+  main#tree{ padding-bottom:44px; }
+  .stats-sep{ color:var(--muted-2); font-size:13px; line-height:1; }
 </style>
 </head>
 <body>
@@ -581,6 +654,19 @@
     <span class="sync-dot" id="syncDot" style="display:none" title=""></span>
     <button class="tb-btn" id="inviteBtn" style="display:none" data-i18n="invite_member">邀请成员</button>
     <button class="cloud-btn" id="cloudBtn" style="display:none"></button>
+  </div>
+
+  <!-- 搜索栏 -->
+  <div id="searchBar">
+    <div class="search-wrap">
+      <svg class="search-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+        <circle cx="6.5" cy="6.5" r="4.5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/>
+      </svg>
+      <input class="search-input" id="searchInput" type="search" autocomplete="off" spellcheck="false" placeholder="搜索节点…">
+      <button class="search-clear" id="searchClear" title="清除">×</button>
+    </div>
+    <span class="search-count" id="searchCount"></span>
+    <span class="search-hint">esc 关闭</span>
   </div>
 
   <main id="tree"></main>
@@ -667,6 +753,25 @@
     </div>
   </div>
 
+  <!-- 底部统计条 -->
+  <div id="statsBar"></div>
+
+  <!-- 快捷键帮助弹窗 -->
+  <div id="shortcutsModal" class="modal">
+    <div class="modal-box" style="max-width:380px;">
+      <div class="modal-title" data-i18n="shortcuts_title">键盘快捷键</div>
+      <div class="kbd-row"><span data-i18n="sc_search">全局搜索</span><span><kbd>/</kbd> 或 <kbd>⌘K</kbd></span></div>
+      <div class="kbd-row"><span data-i18n="sc_add_root">添加根节点</span><span><kbd>N</kbd></span></div>
+      <div class="kbd-row"><span data-i18n="sc_expand">展开全部</span><span><kbd>E</kbd></span></div>
+      <div class="kbd-row"><span data-i18n="sc_collapse">折叠全部</span><span><kbd>C</kbd></span></div>
+      <div class="kbd-row"><span data-i18n="sc_esc">关闭 / 清除搜索</span><span><kbd>Esc</kbd></span></div>
+      <div class="kbd-row"><span data-i18n="sc_help">显示此面板</span><span><kbd>?</kbd></span></div>
+      <div class="modal-btns">
+        <button class="modal-btn mb-cancel" id="shortcutsClose" data-i18n="close">关闭</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast" class="toast"></div>
 
 <script>
@@ -735,6 +840,11 @@ const I18N = {
     invite_invalid:"邀请链接无效", invite_used:"该邀请链接已被使用",
     invite_expired:"邀请链接已过期", invite_joined:"成功加入工作区 🎉",
     ws_label:"工作区",
+    shortcuts_title:"键盘快捷键",
+    sc_search:"全局搜索", sc_add_root:"添加根节点",
+    sc_expand:"展开全部", sc_collapse:"折叠全部",
+    sc_esc:"关闭 / 清除搜索", sc_help:"显示此面板",
+    stats_total:"共", stats_nodes:"个节点", no_results:"无结果",
   },
   ja:{
     app_name:"プロジェクトツリー",
@@ -784,6 +894,11 @@ const I18N = {
     invite_invalid:"招待リンクが無効です", invite_used:"この招待リンクはすでに使用されています",
     invite_expired:"招待リンクの有効期限が切れています", invite_joined:"ワークスペースに参加しました 🎉",
     ws_label:"ワークスペース",
+    shortcuts_title:"キーボードショートカット",
+    sc_search:"検索", sc_add_root:"ルートノード追加",
+    sc_expand:"すべて展開", sc_collapse:"すべて折りたたむ",
+    sc_esc:"閉じる / 検索クリア", sc_help:"このパネルを表示",
+    stats_total:"計", stats_nodes:"件", no_results:"結果なし",
   },
   en:{
     app_name:"Project Tree",
@@ -833,6 +948,11 @@ const I18N = {
     invite_invalid:"Invalid invite link", invite_used:"This invite link has already been used",
     invite_expired:"This invite link has expired", invite_joined:"Joined workspace 🎉",
     ws_label:"Workspace",
+    shortcuts_title:"Keyboard Shortcuts",
+    sc_search:"Global search", sc_add_root:"Add root node",
+    sc_expand:"Expand all", sc_collapse:"Collapse all",
+    sc_esc:"Close / clear search", sc_help:"Show this panel",
+    stats_total:"", stats_nodes:"nodes", no_results:"No results",
   },
 };
 let lang = (function(){
@@ -1011,7 +1131,7 @@ function subtreeIds(nodes, rootId){
 }
 
 /* ---------------- UI 状态 (折叠) ---------------- */
-const ui = { collapsed:new Set(), collapseInit:false };
+const ui = { collapsed:new Set(), collapseInit:false, searchQ:'' };
 function initCollapse(){
   ui.collapsed = new Set();
   const nodes = curNodes();
@@ -1023,6 +1143,38 @@ function initCollapse(){
 
 /* ---------------- 渲染 ---------------- */
 function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+/* 搜索高亮：把 str 中所有 q 片段用 <mark class="hl"> 包裹 */
+function hlText(str, q){
+  if(!q || !str) return esc(str||'');
+  const s = String(str), lower = s.toLowerCase(), lq = q.toLowerCase();
+  const parts = []; let i = 0;
+  while(i < s.length){
+    const pos = lower.indexOf(lq, i);
+    if(pos < 0){ parts.push(esc(s.slice(i))); break; }
+    if(pos > i) parts.push(esc(s.slice(i, pos)));
+    parts.push(`<mark class="hl">${esc(s.slice(pos, pos+lq.length))}</mark>`);
+    i = pos + lq.length;
+  }
+  return parts.join('');
+}
+/* 返回匹配节点 + 所有祖先的 id 集合，query 为空则返回 null */
+function buildMatchSet(nodes, query){
+  if(!query) return null;
+  const q = query.toLowerCase();
+  const byId = {}; nodes.forEach(n=>{ byId[n.id]=n; });
+  const set = new Set();
+  nodes.forEach(n=>{
+    const hit = (n.name||'').toLowerCase().includes(q) ||
+                (n.director||'').toLowerCase().includes(q) ||
+                (n.subtitle||'').toLowerCase().includes(q);
+    if(hit){
+      set.add(n.id);
+      let cur = n;
+      while(cur.parent_id && byId[cur.parent_id]){ set.add(cur.parent_id); cur = byId[cur.parent_id]; }
+    }
+  });
+  return set;
+}
 function badgeHtml(b){
   if(!b) return '';
   /* v0.2: 用 tpl() 读模板覆盖的状态标签 */
@@ -1036,21 +1188,24 @@ function nodeCtrlsHtml(node){
     <span class="node-ctrl del" data-act="del" data-id="${esc(node.id)}" title="${esc(t('del_node'))}">🗑</span>
   </span>`;
 }
-function renderNode(node, cm){
+function renderNode(node, cm, matchIds){
+  if(matchIds && !matchIds.has(node.id)) return '';
   const kids = cm[node.id]||[];
   const meta = node.meta||{};
-  const collapsed = ui.collapsed.has(node.id);
+  /* 搜索时自动展开所有祖先，避免命中节点被折叠藏起来 */
+  const collapsed = matchIds ? false : ui.collapsed.has(node.id);
   const togCls = kids.length ? '' : ' empty';
   const cnt = kids.length ? `<span class="node-cnt">${kids.length}</span>` : '';
-  const dir = node.director ? `<span class="node-meta">${esc(node.director)}</span>` : '';
+  const q = ui.searchQ;
+  const dir = node.director ? `<span class="node-meta">${hlText(node.director,q)}</span>` : '';
   const ppl = meta.people ? `<span class="node-people">${esc(meta.people)}</span>` : '';
   const bdg = badgeHtml(meta.badge);
   const sep1 = (dir && (ppl||bdg)) ? `<span class="node-meta sep">·</span>` : '';
   const sep2 = (ppl && bdg) ? `<span class="node-meta sep">·</span>` : '';
-  const sub = node.subtitle ? `<div class="node-sub">${esc(node.subtitle)}</div>` : '';
+  const sub = node.subtitle ? `<div class="node-sub">${hlText(node.subtitle,q)}</div>` : '';
   /* v0.2: 批注 */
   const notes = meta.notes ? `<div class="node-notes">${esc(meta.notes)}</div>` : '';
-  const nameHtml = node.name ? esc(node.name) : `<span class="ph">${esc(t('unnamed'))}</span>`;
+  const nameHtml = node.name ? hlText(node.name,q) : `<span class="ph">${esc(t('unnamed'))}</span>`;
   return `<div class="node${collapsed?' collapsed':''}" data-node="${esc(node.id)}">
     <div class="node-head" data-nodehead="${esc(node.id)}">
       <span class="node-tog${togCls}">▶</span>
@@ -1060,7 +1215,7 @@ function renderNode(node, cm){
       ${sub}${notes}
     </div>
     <div class="node-body">
-      ${kids.length ? `<div class="node-kids">${kids.map(k=>renderNode(k,cm)).join('')}</div>` : ''}
+      ${kids.length ? `<div class="node-kids">${kids.map(k=>renderNode(k,cm,matchIds)).join('')}</div>` : ''}
     </div>
   </div>`;
 }
@@ -1088,11 +1243,49 @@ function render(){
   if(!ui.collapseInit) initCollapse();
   const cm = childrenMap(nodes);
   const roots = cm['__root__']||[];
+  const matchIds = ui.searchQ ? buildMatchSet(nodes, ui.searchQ) : null;
   if(!nodes.length){
     tree.innerHTML = `<div class="emptytip">${esc(t('empty_proj'))}<div class="em-add"><button class="tb-btn primary" data-act="addroot">${esc(t('add_root'))}</button></div></div>`;
   } else {
-    tree.innerHTML = roots.map(n=>renderNode(n,cm)).join('') + `<div class="add-root"><button class="tb-btn" data-act="addroot">${esc(t('add_root'))}</button></div>`;
+    tree.innerHTML = roots.map(n=>renderNode(n,cm,matchIds)).join('') + `<div class="add-root"><button class="tb-btn" data-act="addroot">${esc(t('add_root'))}</button></div>`;
   }
+  /* 更新搜索计数 */
+  if(matchIds !== null){
+    const cnt = matchIds.size; // 包括祖先，视觉上就是显示的节点数
+    document.getElementById('searchCount').textContent = cnt ? cnt+' '+t('stats_nodes') : t('no_results')||'无结果';
+  } else {
+    document.getElementById('searchCount').textContent = '';
+  }
+  renderStats(nodes, matchIds);
+}
+
+/* 底部统计条渲染 */
+function renderStats(nodes, matchIds){
+  const bar = document.getElementById('statsBar');
+  if(!bar) return;
+  const src = nodes || curNodes();
+  if(!src.length){ bar.classList.remove('vis'); return; }
+  /* 搜索时只统计命中节点（不含纯祖先），其他时候统计全部 */
+  const visible = matchIds
+    ? src.filter(n=> matchIds.has(n.id) && (
+        (n.name||'').toLowerCase().includes(ui.searchQ.toLowerCase()) ||
+        (n.director||'').toLowerCase().includes(ui.searchQ.toLowerCase()) ||
+        (n.subtitle||'').toLowerCase().includes(ui.searchQ.toLowerCase())
+      ))
+    : src;
+  const total   = visible.length;
+  const have    = visible.filter(n=>(n.meta||{}).badge==='have').length;
+  const partial = visible.filter(n=>(n.meta||{}).badge==='partial').length;
+  const gap     = visible.filter(n=>(n.meta||{}).badge==='gap').length;
+  const pre = t('stats_total'); // "共"/"計"/""
+  const suf = t('stats_nodes'); // "个节点"/"件"/"nodes"
+  const totalLabel = [pre, total, suf].filter(Boolean).join(' ');
+  let html = `<span class="stats-item"><span class="stats-dot dot-gray"></span>${totalLabel}</span>`;
+  if(have)    html += `<span class="stats-sep">·</span><span class="stats-item"><span class="stats-dot dot-green"></span>${have} ${esc(tpl('b_have'))}</span>`;
+  if(partial) html += `<span class="stats-sep">·</span><span class="stats-item"><span class="stats-dot dot-orange"></span>${partial} ${esc(tpl('b_partial'))}</span>`;
+  if(gap)     html += `<span class="stats-sep">·</span><span class="stats-item"><span class="stats-dot dot-red"></span>${gap} ${esc(tpl('b_gap'))}</span>`;
+  bar.innerHTML = html;
+  bar.classList.add('vis');
 }
 
 /* ---------------- 节点 CRUD ---------------- */
@@ -1722,8 +1915,44 @@ document.getElementById('pSave').onclick   = saveProjModal;
 document.getElementById('projModal').addEventListener('click', e=>{ if(e.target.id==='projModal') closeProjModal(); });
 document.getElementById('pName').addEventListener('keydown', e=>{ if(e.key==='Enter') saveProjModal(); });
 document.querySelectorAll('#langSw span').forEach(s=>{ s.onclick = ()=>setLang(s.dataset.lang); });
+function openSearch(){
+  document.getElementById('searchBar').classList.add('open');
+  document.getElementById('searchInput').focus();
+  document.getElementById('searchInput').select();
+}
+function closeSearch(){
+  document.getElementById('searchBar').classList.remove('open');
+  ui.searchQ = '';
+  document.getElementById('searchInput').value = '';
+  document.getElementById('searchClear').classList.remove('vis');
+  document.getElementById('searchCount').textContent = '';
+  render();
+}
+function openShortcutsModal(){ document.getElementById('shortcutsModal').classList.add('open'); }
+function closeShortcutsModal(){ document.getElementById('shortcutsModal').classList.remove('open'); }
+
 document.addEventListener('keydown', e=>{
-  if(e.key==='Escape'){ closeNodeModal(); closeProjModal(); closeAuthModal(); closeInviteModal(); }
+  /* Esc：关弹窗 > 关搜索 */
+  if(e.key==='Escape'){
+    if(document.querySelector('.modal.open')){ closeNodeModal(); closeProjModal(); closeAuthModal(); closeInviteModal(); closeShortcutsModal(); return; }
+    if(document.getElementById('searchBar').classList.contains('open')){ closeSearch(); return; }
+    return;
+  }
+  /* 如果焦点在输入框里，不触发快捷键 */
+  const tag = document.activeElement && document.activeElement.tagName;
+  const inInput = tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT';
+  if(inInput) return;
+  /* 如果有弹窗打开，不触发快捷键 */
+  if(document.querySelector('.modal.open')) return;
+  if(e.key==='/'||(e.key==='k'&&(e.metaKey||e.ctrlKey))){ e.preventDefault(); openSearch(); return; }
+  if(e.key==='?'){ openShortcutsModal(); return; }
+  if(e.key==='n'||e.key==='N'){ openNodeModal('add',null,null); return; }
+  if(e.key==='e'||e.key==='E'){ ui.collapsed.clear(); render(); return; }
+  if(e.key==='c'||e.key==='C'){
+    const cm = childrenMap(curNodes());
+    ui.collapsed = new Set(curNodes().filter(n=>(cm[n.id]||[]).length).map(n=>n.id));
+    render(); return;
+  }
 });
 
 /* v0.3: 云端按钮事件 */
@@ -1755,6 +1984,30 @@ document.getElementById('inviteCopyBtn').onclick = ()=>{
 };
 document.getElementById('inviteClose').onclick = ()=> closeInviteModal();
 document.getElementById('inviteModal').addEventListener('click', e=>{ if(e.target.id==='inviteModal') closeInviteModal(); });
+
+/* ── 搜索栏事件 ── */
+document.getElementById('searchInput').addEventListener('input', function(){
+  ui.searchQ = this.value.trim();
+  const hasTxt = !!this.value;
+  document.getElementById('searchClear').classList.toggle('vis', hasTxt);
+  render();
+});
+document.getElementById('searchInput').addEventListener('keydown', e=>{
+  if(e.key==='Escape'){ e.stopPropagation(); closeSearch(); }
+});
+document.getElementById('searchClear').onclick = ()=>{
+  document.getElementById('searchInput').value = '';
+  document.getElementById('searchClear').classList.remove('vis');
+  ui.searchQ = '';
+  render();
+  document.getElementById('searchInput').focus();
+};
+
+/* ── 快捷键弹窗事件 ── */
+document.getElementById('shortcutsClose').onclick = closeShortcutsModal;
+document.getElementById('shortcutsModal').addEventListener('click', e=>{
+  if(e.target.id==='shortcutsModal') closeShortcutsModal();
+});
 
 /* ---------------- 启动 ---------------- */
 applyI18n();

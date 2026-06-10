@@ -1668,6 +1668,9 @@ const cloud = {
   members: [],       // 工作区成员列表缓存
   _pendingInvite: null, // 待处理的邀请 token
   _rtTimer: null,    // realtime 合并延迟计时器
+  lastSynced: {},    // nodeId→指纹: 上次成功同步的节点快照, 用于 diff 增量推送
+  lastSyncedProj: {},// projectId→指纹: 项目层增量推送基线
+  _chain: Promise.resolve(), // 同步串行锁: 保证 push/pull 排队不交错
 };
 
 function cloudEnabled(){ return !!(SUPABASE_CONFIG.url && SUPABASE_CONFIG.key); }
@@ -1818,7 +1821,7 @@ async function ensureWorkspace(){
 }
 
 /* ── 从云端拉取全量数据覆盖本地 state ── */
-async function pullFromCloud(){
+async function _doPull(){
   if(!cloud.sb || !cloud.workspaceId) return;
   try{
     const { data: projects, error: pErr } = await cloud.sb.from('projects')
@@ -1854,6 +1857,11 @@ async function pullFromCloud(){
       created_at: p.created_at, updated_at: p.updated_at,
       nodes: byProj[p.id] || [],
     }));
+    // pull 后本地==云端 → 记录已同步指纹基线(供下次 diff 增量推送对比)
+    cloud.lastSynced = {};
+    state.projects.forEach(p=> p.nodes.forEach((n,i)=>{ cloud.lastSynced[n.id] = fpOf(p.id, n, i); }));
+    cloud.lastSyncedProj = {};
+    state.projects.forEach((p,i)=>{ cloud.lastSyncedProj[p.id] = projFpOf(p, i); });
     if(!state.currentId || !state.projects.find(p=>p.id===state.currentId)){
       state.currentId = state.projects[0]?.id || null;
     }
@@ -1866,6 +1874,13 @@ async function pullFromCloud(){
     renderSyncIndicator('error');
   }
 }
+/* 对外接口：pull 前先把本地待推送改动 flush 上云(避免被 pull 覆盖丢失)，再经串行锁拉取 */
+function pullFromCloud(){
+  return syncSerial(async ()=>{
+    if(cloud.pushTimer){ clearTimeout(cloud.pushTimer); cloud.pushTimer = null; await _doPush(); }
+    await _doPull();
+  });
+}
 
 /* ── 首次登录: 把已有本地数据迁移到云端 ── */
 async function migrateIfNeeded(){
@@ -1875,45 +1890,67 @@ async function migrateIfNeeded(){
   toast(t('migrated_toast'));
 }
 
-/* ── 把本地 state 全量推送到 Supabase ── */
-async function pushToCloud(){
+/* 节点指纹(不含 updated_at/updated_by, 只看影响内容的字段)；push 与 pull 共用以判断节点是否变化 */
+function fpOf(projId, n, idx){
+  return JSON.stringify([projId, n.parent_id||null, n.name||'', n.director||null, n.subtitle||null, idx, n.meta||{}]);
+}
+function projFpOf(p, idx){ return JSON.stringify([p.name||'', p.template||'default', idx]); }
+/* 同步串行锁：push/pull 排队执行，避免两个 async 交错导致基线错乱(DeepSeek 审查) */
+function syncSerial(fn){
+  const next = cloud._chain.then(fn, fn);
+  cloud._chain = next.catch(()=>{});
+  return next;
+}
+/* ── 增量推送到 Supabase ──
+   项目层与节点层都用 diff(本地 vs 上次同步指纹)只推改动/新增 + 删除消失行，
+   根治"全量盲推覆盖协作者未改行"的数据丢失；同时修复"本地删除不同步到云端"的旧 bug。 */
+async function _doPush(){
   if(!cloud.sb || !cloud.workspaceId || !cloud.session) return;
   renderSyncIndicator('syncing');
   try{
     const uid = cloud.session.user.id;
     const ts = now();
-    // Upsert 项目
-    const projRows = state.projects.map((p,i)=>({
-      id: p.id, workspace_id: cloud.workspaceId,
-      name: p.name, template: p.template||'default',
-      sort_order: i, updated_at: ts,
-    }));
-    const { error: pErr } = await cloud.sb.from('projects').upsert(projRows, { onConflict:'id' });
-    if(pErr) throw pErr;
-    // Upsert 节点
-    const nodeRows = state.projects.flatMap(p=>
-      p.nodes.map((n,i)=>({
+    // 项目层 diff（防止全量 upsert 覆盖协作者改的其他项目）
+    const curProjRows = {}, curProjFps = {};
+    state.projects.forEach((p,i)=>{
+      curProjRows[p.id] = { id:p.id, workspace_id:cloud.workspaceId, name:p.name, template:p.template||'default', sort_order:i, updated_at:ts };
+      curProjFps[p.id] = projFpOf(p, i);
+    });
+    const projUp = []; for(const id in curProjFps){ if(cloud.lastSyncedProj[id]!==curProjFps[id]) projUp.push(curProjRows[id]); }
+    const projDel = []; for(const id in cloud.lastSyncedProj){ if(!(id in curProjFps)) projDel.push(id); }
+    if(projUp.length){ const { error } = await cloud.sb.from('projects').upsert(projUp, { onConflict:'id' }); if(error) throw error; }
+    if(projDel.length){ const { error } = await cloud.sb.from('projects').delete().in('id', projDel); if(error) throw error; }
+    // 节点层 diff
+    const curRows = {}, curFps = {};
+    state.projects.forEach(p=> p.nodes.forEach((n,i)=>{
+      curRows[n.id] = {
         id: n.id, project_id: p.id, parent_id: n.parent_id||null,
         name: n.name||'', director: n.director||null,
         subtitle: n.subtitle||null, sort_order: i,
         meta: n.meta||{}, updated_at: ts, updated_by: uid,
-      }))
-    );
-    if(nodeRows.length){
-      // 分块 upsert：每批 200 行，防止大工作区单请求超限
-      const CHUNK = 200;
-      for(let i = 0; i < nodeRows.length; i += CHUNK){
-        const { error: nErr } = await cloud.sb.from('nodes')
-          .upsert(nodeRows.slice(i, i + CHUNK), { onConflict:'id' });
-        if(nErr) throw nErr;
-      }
+      };
+      curFps[n.id] = fpOf(p.id, n, i);
+    }));
+    const toUpsert = []; for(const id in curFps){ if(cloud.lastSynced[id] !== curFps[id]) toUpsert.push(curRows[id]); }
+    const toDelete = []; for(const id in cloud.lastSynced){ if(!(id in curFps)) toDelete.push(id); }
+    const CHUNK = 200;
+    for(let i = 0; i < toUpsert.length; i += CHUNK){
+      const { error: nErr } = await cloud.sb.from('nodes').upsert(toUpsert.slice(i, i + CHUNK), { onConflict:'id' });
+      if(nErr) throw nErr;
     }
+    for(let i = 0; i < toDelete.length; i += CHUNK){
+      const { error: dErr } = await cloud.sb.from('nodes').delete().in('id', toDelete.slice(i, i + CHUNK));
+      if(dErr) throw dErr;
+    }
+    cloud.lastSynced = curFps; cloud.lastSyncedProj = curProjFps; // 成功 → 更新基线
     renderSyncIndicator('synced');
   } catch(e){
     console.error('[cloud] push error:', e);
     renderSyncIndicator('error');
   }
 }
+/* 对外接口：经串行锁排队执行，避免与 pull 交错 */
+function pushToCloud(){ return syncSerial(_doPush); }
 
 /* ── 防抖推送 (saveToStorage 调用) ── */
 function schedulePush(){

@@ -627,6 +627,16 @@
   }
   main#tree{ padding-bottom:44px; }
   .stats-sep{ color:var(--muted-2); font-size:13px; line-height:1; }
+  /* a11y: 键盘焦点环（只套节点头部行，不套整个子树）*/
+  .node:focus{ outline:none; }
+  .node:focus-visible{ outline:none; }
+  .node:focus-visible > .node-head{ box-shadow:0 0 0 2px var(--accent); border-radius:12px; }
+  .node-ctrl:focus-visible{ outline:none; box-shadow:0 0 0 2px var(--accent); }
+  .node-head:focus-within .node-ctrls{ opacity:1; } /* 键盘聚焦行内控件时显示 */
+  @media(prefers-color-scheme:dark){
+    .node:focus-visible > .node-head{ box-shadow:0 0 0 2px #4da6ff; }
+    .node-ctrl:focus-visible{ box-shadow:0 0 0 2px #4da6ff; }
+  }
 </style>
 </head>
 <body>
@@ -672,7 +682,7 @@
     <span class="search-hint">esc 关闭</span>
   </div>
 
-  <main id="tree"></main>
+  <main id="tree" role="tree"></main>
 
   <!-- 节点编辑弹窗 -->
   <div id="nodeModal" class="modal">
@@ -978,6 +988,7 @@ function applyI18n(){
   document.querySelectorAll('#langSw span').forEach(s=>s.classList.toggle('on', s.dataset.lang===lang));
   buildTmplPicker();
   updateUndoButtons();
+  const tw=document.getElementById('tree'); if(tw) tw.setAttribute('aria-label', t('app_name'));
 }
 function setLang(l){ if(!I18N[l]) return; lang=l; localStorage.setItem('projtree-lang',l); applyI18n(); render(); }
 
@@ -1140,7 +1151,7 @@ function subtreeIds(nodes, rootId){
 }
 
 /* ---------------- UI 状态 (折叠) ---------------- */
-const ui = { collapsed:new Set(), collapseInit:false, searchQ:'' };
+const ui = { collapsed:new Set(), collapseInit:false, searchQ:'', focusId:null };
 function initCollapse(){
   ui.collapsed = new Set();
   const nodes = curNodes();
@@ -1192,12 +1203,24 @@ function badgeHtml(b){
 }
 function nodeCtrlsHtml(node){
   return `<span class="node-ctrls">
-    <span class="node-ctrl" data-act="edit" data-id="${esc(node.id)}" title="${esc(t('edit'))}">✏️</span>
-    <span class="node-ctrl add" data-act="addchild" data-id="${esc(node.id)}" title="${esc(t('add_child'))}">＋</span>
-    <span class="node-ctrl del" data-act="del" data-id="${esc(node.id)}" title="${esc(t('del_node'))}">🗑</span>
+    <span class="node-ctrl" role="button" tabindex="-1" data-act="edit" data-id="${esc(node.id)}" aria-label="${esc(t('edit'))}" title="${esc(t('edit'))}">✏️</span>
+    <span class="node-ctrl add" role="button" tabindex="-1" data-act="addchild" data-id="${esc(node.id)}" aria-label="${esc(t('add_child'))}" title="${esc(t('add_child'))}">＋</span>
+    <span class="node-ctrl del" role="button" tabindex="-1" data-act="del" data-id="${esc(node.id)}" aria-label="${esc(t('del_node'))}" title="${esc(t('del_node'))}">🗑</span>
   </span>`;
 }
-function renderNode(node, cm, matchIds){
+/* 拼装屏幕阅读器朗读的节点标签：名称 + 负责人 + 状态 */
+function ariaLabelFor(node){
+  const meta = node.meta||{};
+  const parts = [node.name || t('unnamed')];
+  if(node.director) parts.push(tpl('f_director')+': '+node.director);
+  const b = meta.badge;
+  if(b) parts.push(({have:tpl('b_have'), partial:tpl('b_partial'), gap:tpl('b_gap')})[b]||'');
+  /* 副标题与批注也拼进朗读标签，否则 treeitem 的 aria-label 会盖住它们 */
+  if(node.subtitle) parts.push(node.subtitle);
+  if(meta.notes) parts.push(meta.notes);
+  return parts.filter(Boolean).join(', ');
+}
+function renderNode(node, cm, matchIds, level){
   if(matchIds && !matchIds.has(node.id)) return '';
   const kids = cm[node.id]||[];
   const meta = node.meta||{};
@@ -1215,16 +1238,20 @@ function renderNode(node, cm, matchIds){
   /* v0.2: 批注 */
   const notes = meta.notes ? `<div class="node-notes">${esc(meta.notes)}</div>` : '';
   const nameHtml = node.name ? hlText(node.name,q) : `<span class="ph">${esc(t('unnamed'))}</span>`;
-  return `<div class="node${collapsed?' collapsed':''}" data-node="${esc(node.id)}">
+  /* a11y: WAI-ARIA tree 模式 */
+  const lvl = level||1;
+  const ariaExp = kids.length ? ` aria-expanded="${collapsed?'false':'true'}"` : '';
+  const tab = (ui.focusId===node.id) ? '0' : '-1';
+  return `<div class="node${collapsed?' collapsed':''}" data-node="${esc(node.id)}" role="treeitem" aria-level="${lvl}"${ariaExp} tabindex="${tab}" aria-label="${esc(ariaLabelFor(node))}">
     <div class="node-head" data-nodehead="${esc(node.id)}">
-      <span class="node-tog${togCls}">▶</span>
+      <span class="node-tog${togCls}" aria-hidden="true">▶</span>
       <span class="node-name">${nameHtml}</span>
       ${dir}${sep1}${ppl}${sep2}${bdg}${cnt}
       ${nodeCtrlsHtml(node)}
       ${sub}${notes}
     </div>
     <div class="node-body">
-      ${kids.length ? `<div class="node-kids">${kids.map(k=>renderNode(k,cm,matchIds)).join('')}</div>` : ''}
+      ${kids.length ? `<div class="node-kids" role="group">${kids.map(k=>renderNode(k,cm,matchIds,lvl+1)).join('')}</div>` : ''}
     </div>
   </div>`;
 }
@@ -1256,7 +1283,7 @@ function render(){
   if(!nodes.length){
     tree.innerHTML = `<div class="emptytip">${esc(t('empty_proj'))}<div class="em-add"><button class="tb-btn primary" data-act="addroot">${esc(t('add_root'))}</button></div></div>`;
   } else {
-    tree.innerHTML = roots.map(n=>renderNode(n,cm,matchIds)).join('') + `<div class="add-root"><button class="tb-btn" data-act="addroot">${esc(t('add_root'))}</button></div>`;
+    tree.innerHTML = roots.map(n=>renderNode(n,cm,matchIds,1)).join('') + `<div class="add-root"><button class="tb-btn" data-act="addroot">${esc(t('add_root'))}</button></div>`;
   }
   /* 更新搜索计数 */
   if(matchIds !== null){
@@ -1266,6 +1293,110 @@ function render(){
     document.getElementById('searchCount').textContent = '';
   }
   renderStats(nodes, matchIds);
+  ensureTreeTabindex(); // a11y: 保证树内恒有一个 treeitem 可 Tab 进入
+}
+
+/* ---------------- a11y: 键盘树导航 (WAI-ARIA tree 模式) ---------------- */
+/* 当前展开状态下，从上到下可见的节点 id 有序序列（不依赖 DOM/CSS，纯数据模型计算） */
+function visibleNodeSeq(){
+  const nodes = curNodes();
+  const cm = childrenMap(nodes);
+  const matchIds = ui.searchQ ? buildMatchSet(nodes, ui.searchQ) : null;
+  const seq = [];
+  (function walk(list){
+    list.forEach(n=>{
+      if(matchIds && !matchIds.has(n.id)) return;
+      seq.push(n.id);
+      const kids = cm[n.id]||[];
+      const collapsed = matchIds ? false : ui.collapsed.has(n.id);
+      if(kids.length && !collapsed) walk(kids);
+    });
+  })(cm['__root__']||[]);
+  return seq;
+}
+/* roving tabindex：焦点节点 tabindex=0，其余 -1；无有效焦点时给第一个可见节点，保证 Tab 能进树 */
+function cssEsc(s){ return (window.CSS&&CSS.escape)?CSS.escape(String(s)):String(s); }
+/* roving tabindex：焦点 treeitem 及其行内控件设 0，其余全部 -1 (控件随节点焦点进入 Tab 序列) */
+function setRovingTab(el){
+  document.querySelectorAll('#tree [role="treeitem"]').forEach(n=>{ n.tabIndex = -1; });
+  document.querySelectorAll('#tree .node-ctrl').forEach(c=>{ c.tabIndex = -1; });
+  if(el){
+    el.tabIndex = 0;
+    const head = el.querySelector(':scope > .node-head');
+    if(head) head.querySelectorAll('.node-ctrl').forEach(c=>{ c.tabIndex = 0; });
+  }
+}
+function ensureTreeTabindex(){
+  const items = document.querySelectorAll('#tree [role="treeitem"]');
+  if(!items.length) return;
+  const target = ui.focusId ? document.querySelector('#tree .node[data-node="'+cssEsc(ui.focusId)+'"]') : null;
+  setRovingTab(target || items[0]);
+}
+/* 把键盘焦点移到指定节点；目标不存在(被删/被搜索过滤)则回退到首个可见节点，避免焦点丢失(键盘陷阱) */
+function focusNode(id){
+  let el = id ? document.querySelector('#tree .node[data-node="'+cssEsc(id)+'"]') : null;
+  if(!el){
+    const seq = visibleNodeSeq();
+    id = seq[0] || null;
+    el = id ? document.querySelector('#tree .node[data-node="'+cssEsc(id)+'"]') : null;
+  }
+  if(el){ ui.focusId = id; setRovingTab(el); el.focus(); }
+}
+/* 树内方向键导航 */
+function treeKeydown(e){
+  /* 焦点在行内控件按钮上：Enter/Space 触发该控件，不走树导航 */
+  const ctrl = e.target.closest && e.target.closest('.node-ctrl');
+  if(ctrl){
+    if(e.key==='Enter' || e.key===' '){
+      e.preventDefault();
+      const a=ctrl.dataset.act, id=ctrl.dataset.id;
+      if(a==='edit'){ const n=curNodes().find(x=>x.id===id); if(n) openNodeModal('edit', n); }
+      else if(a==='addchild'){ openNodeModal('add', null, id); }
+      else if(a==='del'){ delNode(id); }
+    }
+    return;
+  }
+  const item = e.target.closest && e.target.closest('[role="treeitem"]');
+  if(!item) return;
+  const cur = item.dataset.node;
+  if(!cur) return;
+  const nodes = curNodes();
+  const cm = childrenMap(nodes);
+  const node = nodes.find(n=>n.id===cur);
+  const kids = cm[cur]||[];
+  if(e.key==='ArrowDown'){
+    e.preventDefault(); const seq=visibleNodeSeq(); const i=seq.indexOf(cur);
+    if(i>-1 && i<seq.length-1) focusNode(seq[i+1]);
+  } else if(e.key==='ArrowUp'){
+    e.preventDefault(); const seq=visibleNodeSeq(); const i=seq.indexOf(cur);
+    if(i>0) focusNode(seq[i-1]);
+  } else if(e.key==='ArrowRight'){
+    e.preventDefault();
+    if(kids.length){
+      if(ui.collapsed.has(cur)){ ui.collapsed.delete(cur); render(); focusNode(cur); }
+      else {
+        /* 已展开：仅当下一个可见节点确实是本节点的子时才进入(搜索模式下子可能被过滤掉) */
+        const seq=visibleNodeSeq(); const i=seq.indexOf(cur);
+        if(i>-1 && i<seq.length-1){ const nx=nodes.find(n=>n.id===seq[i+1]); if(nx && nx.parent_id===cur) focusNode(seq[i+1]); }
+      }
+    }
+  } else if(e.key==='ArrowLeft'){
+    e.preventDefault();
+    if(kids.length && !ui.collapsed.has(cur)){ ui.collapsed.add(cur); render(); focusNode(cur); }
+    else if(node && node.parent_id){ focusNode(node.parent_id); }
+  } else if(e.key==='Enter'){
+    e.preventDefault(); if(node) openNodeModal('edit', node);
+  } else if(e.key==='Delete' || e.key==='Backspace'){
+    e.preventDefault();
+    const seq=visibleNodeSeq(); const i=seq.indexOf(cur);
+    const fallback = (node && node.parent_id) || (i>0?seq[i-1]:(seq[i+1]||null));
+    delNode(cur); // 内含 confirm；取消则节点仍在
+    focusNode(curNodes().find(n=>n.id===cur) ? cur : fallback);
+  } else if(e.key==='Home'){
+    e.preventDefault(); const seq=visibleNodeSeq(); if(seq.length) focusNode(seq[0]);
+  } else if(e.key==='End'){
+    e.preventDefault(); const seq=visibleNodeSeq(); if(seq.length) focusNode(seq[seq.length-1]);
+  }
 }
 
 /* 底部统计条渲染 */
@@ -1939,10 +2070,12 @@ document.getElementById('tree').addEventListener('click', e=>{
   const nh = e.target.closest('[data-nodehead]');
   if(nh){
     const id = nh.dataset.nodehead;
+    ui.focusId = id; // a11y: 点击的节点成为键盘焦点锚点
     ui.collapsed.has(id) ? ui.collapsed.delete(id) : ui.collapsed.add(id);
     render();
   }
 });
+document.getElementById('tree').addEventListener('keydown', treeKeydown);
 document.getElementById('projSel').onchange = e=>switchProject(e.target.value);
 document.getElementById('newProj').onclick = ()=>openProjModal('new');
 document.getElementById('renameProj').onclick = ()=>openProjModal('rename');

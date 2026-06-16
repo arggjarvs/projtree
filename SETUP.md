@@ -25,7 +25,7 @@
 
 Supabase 默认启用 Email 认证，Magic Link 开箱即用，无需任何 OAuth 配置。
 
-- **Site URL** 已通过 API 配置为 `https://arggjarvs.github.io/projtree/`
+- **Site URL** 已通过 API 配置为 `https://millennialdreamer.github.io/projtree/`
 - **允许的重定向 URL** 已包含本地测试地址 `http://localhost:8742`
 - 用户点击登录 → 输入邮箱 → 收到 Magic Link 邮件 → 点击链接完成登录，全程无需 Google 账号
 

@@ -8,7 +8,7 @@ A minimalist single-HTML tool for building **collaborative org trees** — zero 
 
 ## Try it now
 
-**Live demo**: https://arggjarvs.github.io/projtree/
+**Live demo**: https://millennialdreamer.github.io/projtree/
 
 Or just download `index.html` and double-click. Data lives in your browser (localStorage), survives refresh, export to JSON anytime.
 
@@ -35,8 +35,8 @@ Or just download `index.html` and double-click. Data lives in your browser (loca
 ## Install as a Claude Skill
 
 ```bash
-claude plugin marketplace add arggjarvs/projtree
-claude plugin install projtree@arggjarvs-projtree-marketplace
+claude plugin marketplace add millennialdreamer/projtree
+claude plugin install projtree@millennialdreamer-projtree-marketplace
 ```
 
 Then in any Claude Code / Claude Cowork session just say "build me an OKR tree" / "lay out our team org chart" / "decompose this project into a WBS" — Claude will open projtree and walk you through filling nodes.

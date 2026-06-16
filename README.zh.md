@@ -8,7 +8,7 @@
 
 ## 立刻试用
 
-无需下载，点击链接即可体验：https://arggjarvs.github.io/projtree/
+无需下载，点击链接即可体验：https://millennialdreamer.github.io/projtree/
 
 支持浏览器本地运行，数据自动保存至本地存储，刷新页面数据不丢失。您可以直接下载 HTML 文件到本地双击打开，亦可部署至任意静态托管服务。
 
@@ -32,8 +32,8 @@
 ## 作为 Claude Skill 安装
 
 ```bash
-claude plugin marketplace add arggjarvs/projtree
-claude plugin install projtree@arggjarvs-projtree-marketplace
+claude plugin marketplace add millennialdreamer/projtree
+claude plugin install projtree@millennialdreamer-projtree-marketplace
 ```
 
 装完后在 Claude Code / Claude Cowork 里直接说"帮我建一棵 OKR 树"/"拆解这个项目的 WBS"/"画下团队的组织架构"——Claude 会自动打开 projtree 一步步引导你填字段。

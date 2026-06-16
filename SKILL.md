@@ -14,7 +14,7 @@ Help the user create and edit a hierarchical tree where each node carries five f
 Prefer the live URL — zero install, works on any browser:
 
 ```
-https://arggjarvs.github.io/projtree/
+https://millennialdreamer.github.io/projtree/
 ```
 
 For offline use, open the bundled `index.html` directly (same file). Data persists in browser localStorage. JSON import/export to share or back up.
@@ -66,4 +66,4 @@ JSON export and import use this structure:
 
 ## Source
 
-GitHub: https://github.com/arggjarvs/projtree (MIT, public)
+GitHub: https://github.com/millennialdreamer/projtree (MIT, public)

@@ -1,6 +1,6 @@
 {
-  "name": "arggjarvs-projtree-marketplace",
-  "description": "arggjarvs Claude marketplace — starting with projtree (collaborative org-tree)",
+  "name": "millennialdreamer-projtree-marketplace",
+  "description": "millennialdreamer Claude marketplace — starting with projtree (collaborative org-tree)",
   "plugins": [
     {
       "name": "projtree",
